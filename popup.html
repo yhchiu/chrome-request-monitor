@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <style>
     body {
-      width: 450px;
+      width: 480px;
       min-height: 300px;
       margin: 0;
+      padding: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #fff;
+      overflow-x: hidden;
     }
     
     .header {
@@ -29,8 +31,9 @@
       padding: 15px 20px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       background: rgba(255, 255, 255, 0.05);
+      gap: 15px;
     }
     
     .btn {
@@ -41,6 +44,10 @@
       font-size: 12px;
       font-weight: 500;
       transition: all 0.2s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .btn-primary {
@@ -178,14 +185,14 @@
   </div>
   
   <div class="controls">
-    <div style="display: flex; flex-direction: column; align-items: flex-start;">
-    <span id="urlCount" style="font-size: 12px;">載入中...</span>
-      <label style="font-size: 11px; color: rgba(255, 255, 255, 0.8); margin-top: 4px; cursor: pointer;">
+    <div style="display: flex; flex-direction: column; align-items: flex-start; flex: 1;">
+      <span id="urlCount" style="font-size: 12px; margin-bottom: 4px;">載入中...</span>
+      <label style="font-size: 11px; color: rgba(255, 255, 255, 0.8); cursor: pointer; display: flex; align-items: center;">
         <input type="checkbox" id="tabFilterToggle" checked style="margin-right: 6px;">
         只顯示目前分頁
       </label>
     </div>
-    <div>
+    <div style="display: flex; gap: 8px;">
       <button id="refreshBtn" class="btn btn-secondary">刷新</button>
       <button id="clearBtn" class="btn btn-primary">清除全部</button>
       <button id="optionsBtn" class="btn btn-secondary">設定</button>
