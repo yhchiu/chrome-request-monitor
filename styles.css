@@ -1,0 +1,63 @@
+/* Styles for URL Monitor Extension Content Script */
+
+#url-monitor-overlay-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+}
+
+#url-monitor-overlay-container * {
+  pointer-events: auto !important;
+}
+
+.url-monitor-overlay {
+  all: initial !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  background: rgba(40, 44, 52, 0.95) !important;
+  color: #fff !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  margin-bottom: 10px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid #61dafb !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  max-width: 400px !important;
+  word-wrap: break-word !important;
+  animation: url-monitor-slideIn 0.3s ease-out !important;
+}
+
+@keyframes url-monitor-slideIn {
+  from {
+    transform: translateX(100%) !important;
+    opacity: 0 !important;
+  }
+  to {
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+  }
+}
+
+.url-monitor-overlay button {
+  all: initial !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  cursor: pointer !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  transition: all 0.2s !important;
+  border: none !important;
+  text-align: center !important;
+  display: inline-block !important;
+}
+
+.url-monitor-overlay .copy-btn {
+  background: #61dafb !important;
+  color: #282c34 !important;
+}
+
+.url-monitor-overlay .close-btn {
+  background: #e06c75 !important;
+  color: white !important;
+} 

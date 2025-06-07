@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>網絡請求監控器 - 設定</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      min-height: 100vh;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.3);
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 300;
+    }
+    
+    .header p {
+      margin: 10px 0 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .content {
+      padding: 30px;
+    }
+    
+    .section {
+      margin-bottom: 30px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .section h2 {
+      margin: 0 0 20px;
+      color: #333;
+      font-size: 20px;
+      font-weight: 500;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e1e5e9;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 15px;
+      align-items: end;
+    }
+    
+    .form-row .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5a67d8;
+      transform: translateY(-1px);
+    }
+    
+    .btn-success {
+      background: #48bb78;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #38a169;
+    }
+    
+    .btn-danger {
+      background: #f56565;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #e53e3e;
+    }
+    
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    .rule-list {
+      background: white;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .rule-item {
+      padding: 15px;
+      border-bottom: 1px solid #e1e5e9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .rule-item:last-child {
+      border-bottom: none;
+    }
+    
+    .rule-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .rule-info {
+      flex: 1;
+    }
+    
+    .rule-name {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .rule-details {
+      font-size: 12px;
+      color: #666;
+      font-family: 'Courier New', monospace;
+      background: #f1f3f4;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    
+    .rule-type {
+      background: #667eea;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+    
+    .rule-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+    
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border: 1px solid transparent;
+    }
+    
+    .alert-success {
+      background: #f0fff4;
+      color: #22543d;
+      border-color: #9ae6b4;
+    }
+    
+    .alert-error {
+      background: #fed7d7;
+      color: #742a2a;
+      border-color: #feb2b2;
+    }
+    
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .examples {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+    
+    .examples h4 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #4a5568;
+    }
+    
+    .examples ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .examples li {
+      margin-bottom: 4px;
+    }
+    
+    .examples code {
+      background: #edf2f7;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌐 網絡請求監控器</h1>
+      <p>設定URL匹配規則來監控您感興趣的網絡請求</p>
+    </div>
+    
+    <div class="content">
+      <div id="alertContainer"></div>
+      
+      <div class="section">
+        <h2>📝 新增URL規則</h2>
+        
+        <form id="ruleForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ruleName">規則名稱</label>
+              <input type="text" id="ruleName" class="form-control" placeholder="輸入規則的描述名稱" required>
+              <div class="help-text">給這個規則一個容易識別的名稱</div>
+            </div>
+            
+            <div class="form-group">
+              <label for="ruleType">匹配類型</label>
+              <select id="ruleType" class="form-control" required>
+                <option value="">選擇匹配類型</option>
+                <option value="contains">包含</option>
+                <option value="startswith">開頭匹配</option>
+                <option value="endswith">結尾匹配</option>
+                <option value="regex">正則表達式</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="ruleValue">匹配值</label>
+            <input type="text" id="ruleValue" class="form-control" placeholder="輸入要匹配的文字或正則表達式" required>
+            <div class="help-text" id="ruleHelp">請先選擇匹配類型</div>
+          </div>
+          
+          <button type="submit" class="btn btn-primary">
+            ➕ 新增規則
+          </button>
+        </form>
+        
+        <div class="examples">
+          <h4>💡 範例：</h4>
+          <ul>
+            <li><strong>包含：</strong> <code>api.example.com</code> - 匹配包含此文字的URL</li>
+            <li><strong>開頭匹配：</strong> <code>https://api.</code> - 匹配以此開頭的URL</li>
+            <li><strong>結尾匹配：</strong> <code>.json</code> - 匹配以此結尾的URL</li>
+            <li><strong>正則表達式：</strong> <code>/api/v\d+/users</code> - 匹配API版本號的用戶端點</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>📋 目前的規則列表</h2>
+        
+        <div id="rulesList" class="rule-list">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <div>尚未設定任何規則</div>
+            <div style="font-size: 12px; margin-top: 8px; color: #999;">
+              新增第一個規則來開始監控網絡請求
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 15px; text-align: right;">
+          <button id="clearAllBtn" class="btn btn-danger btn-sm" style="display: none;">
+            🗑️ 清除所有規則
+          </button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>ℹ️ 使用說明</h2>
+        <ul style="line-height: 1.6; color: #555;">
+          <li>設定完規則後，當您瀏覽網站時，符合規則的URL會自動顯示在頁面上的覆蓋框中</li>
+          <li>您可以點擊擴展圖標打開彈出窗口查看所有找到的URL</li>
+          <li>正則表達式匹配區分大小寫，其他匹配類型不區分大小寫</li>
+          <li>建議從簡單的「包含」匹配開始，再逐步使用更複雜的規則</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html> 

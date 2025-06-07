@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "網絡請求監控器",
+  "version": "1.0.0",
+  "description": "監控網絡請求並根據自定義規則查找URL",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "webRequest",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "網絡請求監控器"
+  },
+  
+  "options_page": "options.html",
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["styles.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+} 
