@@ -12,6 +12,8 @@
 
 .url-monitor-overlay {
   all: initial !important;
+  display: block !important;
+  box-sizing: border-box !important;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
   background: rgba(40, 44, 52, 0.95) !important;
   color: #fff !important;
