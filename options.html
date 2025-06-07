@@ -358,6 +358,37 @@
           <li>建議從簡單的「包含」匹配開始，再逐步使用更複雜的規則</li>
         </ul>
       </div>
+      
+      <div class="section">
+        <h2>📱 覆蓋框設定</h2>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="maxOverlays">最大覆蓋框數量</label>
+            <input type="number" id="maxOverlays" class="form-control" min="1" max="20" value="5" required>
+            <div class="help-text">同時顯示的覆蓋框最大數量 (1-20)</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="overlayTimeout">覆蓋框超時時間 (秒)</label>
+            <input type="number" id="overlayTimeout" class="form-control" min="5" max="300" value="30" required>
+            <div class="help-text">覆蓋框自動消失的時間 (5-300秒)</div>
+          </div>
+        </div>
+        
+        <button type="button" id="saveOverlaySettings" class="btn btn-success">
+          💾 儲存覆蓋框設定
+        </button>
+        
+        <div class="examples">
+          <h4>💡 說明：</h4>
+          <ul>
+            <li><strong>最大數量：</strong>當達到最大數量時，新的覆蓋框會替換最舊的</li>
+            <li><strong>超時時間：</strong>覆蓋框會在指定時間後自動消失</li>
+            <li><strong>預設值：</strong>最大5個覆蓋框，30秒後自動消失</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
   

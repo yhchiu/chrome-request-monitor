@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const ruleType = document.getElementById('ruleType');
   const ruleHelp = document.getElementById('ruleHelp');
   
+  // Overlay settings elements
+  const maxOverlays = document.getElementById('maxOverlays');
+  const overlayTimeout = document.getElementById('overlayTimeout');
+  const saveOverlaySettings = document.getElementById('saveOverlaySettings');
+  
   // Help text for different rule types
   const helpTexts = {
     contains: '輸入URL中應包含的文字，例如：api.example.com',
@@ -44,6 +49,49 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.get(['urlRules'], function(result) {
       const rules = result.urlRules || [];
       displayRules(rules);
+    });
+  }
+  
+  // Load overlay settings
+  function loadOverlaySettings() {
+    chrome.storage.sync.get(['overlaySettings'], function(result) {
+      const settings = result.overlaySettings || {
+        maxOverlays: 5,
+        timeoutSeconds: 30
+      };
+      
+      maxOverlays.value = settings.maxOverlays;
+      overlayTimeout.value = settings.timeoutSeconds;
+    });
+  }
+  
+  // Save overlay settings
+  function saveOverlaySettingsFunction() {
+    const maxValue = parseInt(maxOverlays.value);
+    const timeoutValue = parseInt(overlayTimeout.value);
+    
+    // Validate input
+    if (maxValue < 1 || maxValue > 20) {
+      showAlert('最大覆蓋框數量必須在1-20之間', 'error');
+      return;
+    }
+    
+    if (timeoutValue < 5 || timeoutValue > 300) {
+      showAlert('超時時間必須在5-300秒之間', 'error');
+      return;
+    }
+    
+    const settings = {
+      maxOverlays: maxValue,
+      timeoutSeconds: timeoutValue
+    };
+    
+    chrome.storage.sync.set({ overlaySettings: settings }, function() {
+      if (chrome.runtime.lastError) {
+        showAlert('儲存覆蓋框設定時發生錯誤：' + chrome.runtime.lastError.message, 'error');
+      } else {
+        showAlert('覆蓋框設定已成功儲存！');
+      }
     });
   }
   
@@ -199,4 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initial load
   loadRules();
+  loadOverlaySettings();
+  
+  // Overlay settings event listener
+  saveOverlaySettings.addEventListener('click', saveOverlaySettingsFunction);
 }); 

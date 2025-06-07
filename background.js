@@ -78,6 +78,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'clearFoundUrls') {
     foundUrls = [];
     sendResponse({ success: true });
+  } else if (request.action === 'getOverlaySettings') {
+    // Get overlay settings from storage
+    chrome.storage.sync.get(['overlaySettings'], function(result) {
+      const settings = result.overlaySettings || {
+        maxOverlays: 5,
+        timeoutSeconds: 30
+      };
+      sendResponse({ settings: settings });
+    });
+    return true; // Keep the message channel open for async response
+  }
+});
+
+// Listen for storage changes to update content scripts when overlay settings change
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'sync' && changes.overlaySettings) {
+    const newSettings = changes.overlaySettings.newValue;
+    // Notify all tabs about the settings change
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'updateOverlaySettings',
+          settings: newSettings
+        }).catch(() => {
+          // Ignore errors for tabs that don't have the content script
+        });
+      });
+    });
   }
 });
 
