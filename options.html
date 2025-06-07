@@ -67,6 +67,10 @@
       margin-bottom: 20px;
     }
     
+    .form-group.spacing-top {
+      margin-top: 25px;
+    }
+    
     .form-group label {
       display: block;
       margin-bottom: 8px;
@@ -91,13 +95,19 @@
     
     .form-row {
       display: flex;
-      gap: 15px;
-      align-items: end;
+      gap: 20px;
+      align-items: flex-start;
+      margin-bottom: 25px;
     }
     
     .form-row .form-group {
       flex: 1;
       margin-bottom: 0;
+    }
+    
+    .form-row .help-text {
+      height: 16px;
+      min-height: 16px;
     }
     
     .btn {
@@ -307,10 +317,10 @@
             </div>
           </div>
           
-          <div class="form-group">
+          <div class="form-group spacing-top">
             <label for="ruleValue">匹配值</label>
             <input type="text" id="ruleValue" class="form-control" placeholder="輸入要匹配的文字或正則表達式" required>
-            <div class="help-text" id="ruleHelp">請先選擇匹配類型</div>
+            <div class="help-text" id="ruleHelp">請先選擇匹配類型</div>  
           </div>
           
           <button type="submit" class="btn btn-primary">
