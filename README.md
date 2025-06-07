@@ -9,6 +9,7 @@ A powerful Chrome extension that monitors network requests on web pages and find
 - 🔍 **Real-time Monitoring**: Automatically monitors all network requests on active tabs
 - 📋 **Custom Rules**: Supports multiple matching patterns (contains, starts with, ends with, regex)
 - 📌 **Page Overlay Display**: Shows notification boxes on pages when matching URLs are found
+- 🎯 **Tab Filtering**: Option to display URLs from all tabs or current tab only
 - 📊 **Unified Management**: View all found URLs in the popup window
 - ⚙️ **Flexible Settings**: Easily manage matching rules through the options page
 - 📋 **One-click Copy**: Quickly copy found URLs
@@ -61,7 +62,8 @@ After setting up rules, when you browse websites:
 ### Step 3: View History
 
 - Click the extension icon to open the popup window
-- View the list of all found URLs
+- By default, only URLs from the current tab are displayed. Uncheck "Show current tab only" to view URLs from all tabs
+- View the list of found URLs
 - Click the "Copy URL" button to copy specific URLs
 - Use the "Clear All" button to clear the history
 

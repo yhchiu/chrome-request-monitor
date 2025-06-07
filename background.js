@@ -58,7 +58,23 @@ chrome.webRequest.onBeforeRequest.addListener(
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getFoundUrls') {
+    if (request.currentTabOnly) {
+      // Get current active tab
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab) {
+          // Filter URLs by current tab ID
+          const currentTabUrls = foundUrls.filter(urlData => urlData.tabId === activeTab.id);
+          sendResponse({ urls: currentTabUrls });
+        } else {
+          sendResponse({ urls: [] });
+        }
+      });
+      // Return true to indicate that the response is sent asynchronously
+      return true;
+    } else {
     sendResponse({ urls: foundUrls });
+    }
   } else if (request.action === 'clearFoundUrls') {
     foundUrls = [];
     sendResponse({ success: true });

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const clearBtn = document.getElementById('clearBtn');
   const optionsBtn = document.getElementById('optionsBtn');
   const optionsLink = document.getElementById('optionsLink');
+  const tabFilterToggle = document.getElementById('tabFilterToggle');
   
   // Load and display URLs
   function loadUrls() {
@@ -15,15 +16,23 @@ document.addEventListener('DOMContentLoaded', function() {
     urlList.style.display = 'none';
     emptyState.style.display = 'none';
     
-    chrome.runtime.sendMessage({ action: 'getFoundUrls' }, (response) => {
+    // Check if we should filter by current tab only (default: true)
+    const currentTabOnly = tabFilterToggle ? tabFilterToggle.checked : true;
+    
+    chrome.runtime.sendMessage({ 
+      action: 'getFoundUrls',
+      currentTabOnly: currentTabOnly
+    }, (response) => {
       loading.style.display = 'none';
       
       if (response && response.urls && response.urls.length > 0) {
         displayUrls(response.urls);
-        urlCount.textContent = `找到 ${response.urls.length} 個URL`;
+        const filterText = currentTabOnly ? '(目前分頁)' : '(所有分頁)';
+        urlCount.textContent = `找到 ${response.urls.length} 個URL ${filterText}`;
       } else {
         emptyState.style.display = 'block';
-        urlCount.textContent = '找到 0 個URL';
+        const filterText = currentTabOnly ? '(目前分頁)' : '(所有分頁)';
+        urlCount.textContent = `找到 0 個URL ${filterText}`;
       }
     });
   }
@@ -110,6 +119,16 @@ document.addEventListener('DOMContentLoaded', function() {
     e.preventDefault();
     openOptions();
   });
+  
+  // Tab filter toggle
+  if (tabFilterToggle) {
+    // Set default to current tab only
+    tabFilterToggle.checked = true;
+    
+    tabFilterToggle.addEventListener('change', function() {
+      loadUrls();
+    });
+  }
   
   // Initial load
   loadUrls();

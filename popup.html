@@ -178,7 +178,13 @@
   </div>
   
   <div class="controls">
+    <div style="display: flex; flex-direction: column; align-items: flex-start;">
     <span id="urlCount" style="font-size: 12px;">載入中...</span>
+      <label style="font-size: 11px; color: rgba(255, 255, 255, 0.8); margin-top: 4px; cursor: pointer;">
+        <input type="checkbox" id="tabFilterToggle" checked style="margin-right: 6px;">
+        只顯示目前分頁
+      </label>
+    </div>
     <div>
       <button id="refreshBtn" class="btn btn-secondary">刷新</button>
       <button id="clearBtn" class="btn btn-primary">清除全部</button>
