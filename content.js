@@ -24,6 +24,20 @@ let overlaySettings = {
 let globalHoverState = false;
 let allOverlayTimeouts = new Map(); // Store timeoutId for each overlay
 
+// i18n helper for content script
+function localizeOverlay(overlay) {
+  const elements = overlay.querySelectorAll('[data-i18n]');
+  elements.forEach(element => {
+    const key = element.getAttribute('data-i18n');
+    // Send message to background script to get translation
+    chrome.runtime.sendMessage({ action: 'getI18nMessage', key: key }, (response) => {
+      if (response && response.message) {
+        element.textContent = response.message;
+      }
+    });
+  });
+}
+
 // Load overlay settings from storage
 function loadOverlaySettings() {
   chrome.runtime.sendMessage({ action: 'getOverlaySettings' }, function(response) {
@@ -154,8 +168,8 @@ function showUrlOverlay(urlData) {
   const content = `
     <div style="margin-bottom: 8px;">
       <div style="color: #61dafb; font-weight: bold; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
-        <span>找到匹配的URL:</span>
-        <span id="timeout-indicator" style="font-size: 10px; color: rgba(255, 255, 255, 0.6); display: none;">⏸️ 已暫停</span>
+        <span data-i18n="overlayTitle">Found matching URL:</span>
+        <span id="timeout-indicator" style="font-size: 10px; color: rgba(255, 255, 255, 0.6); display: none;" data-i18n="overlayPaused">⏸️ Paused</span>
       </div>
       <div style="word-break: break-all; background: rgba(255, 255, 255, 0.1); padding: 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">
         ${urlData.url}
@@ -163,7 +177,7 @@ function showUrlOverlay(urlData) {
     </div>
     <div style="margin-bottom: 8px;">
       <div style="color: #98c379; font-size: 12px;">
-        規則: ${urlData.rule.name || urlData.rule.type} - ${urlData.rule.value}
+        <span data-i18n="rule">Rule</span>: ${urlData.rule.name || urlData.rule.type} - ${urlData.rule.value}
       </div>
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -177,7 +191,7 @@ function showUrlOverlay(urlData) {
         font-size: 12px;
         font-weight: bold;
         transition: all 0.2s;
-      ">複製</button>
+      " data-i18n="overlayCopy">Copy</button>
       <button class="close-btn" style="
         background: #e06c75;
         color: white;
@@ -188,11 +202,14 @@ function showUrlOverlay(urlData) {
         font-size: 12px;
         font-weight: bold;
         transition: all 0.2s;
-      ">關閉</button>
+      " data-i18n="overlayClose">Close</button>
     </div>
   `;
   
   overlay.innerHTML = content;
+  
+  // Localize the overlay content
+  localizeOverlay(overlay);
   
   // Get timeout indicator element
   const timeoutIndicator = overlay.querySelector('#timeout-indicator');
@@ -203,10 +220,10 @@ function showUrlOverlay(urlData) {
   
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(urlData.url).then(() => {
-      copyBtn.textContent = '已複製!';
+      copyBtn.textContent = chrome.i18n.getMessage('copied') || 'Copied!';
       copyBtn.style.background = '#98c379';
       setTimeout(() => {
-        copyBtn.textContent = '複製';
+        copyBtn.textContent = chrome.i18n.getMessage('overlayCopy') || 'Copy';
         copyBtn.style.background = '#61dafb';
       }, 1500);
     });

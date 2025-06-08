@@ -27,12 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (response && response.urls && response.urls.length > 0) {
         displayUrls(response.urls);
-        const filterText = currentTabOnly ? '(目前分頁)' : '(所有分頁)';
-        urlCount.textContent = `找到 ${response.urls.length} 個URL ${filterText}`;
+        const filterText = currentTabOnly ? getMessage('currentTab') : getMessage('allTabs');
+        urlCount.textContent = getMessage('foundUrls', [response.urls.length.toString(), filterText]);
       } else {
         emptyState.style.display = 'block';
-        const filterText = currentTabOnly ? '(目前分頁)' : '(所有分頁)';
-        urlCount.textContent = `找到 0 個URL ${filterText}`;
+        const filterText = currentTabOnly ? getMessage('currentTab') : getMessage('allTabs');
+        urlCount.textContent = getMessage('foundUrls', ['0', filterText]);
       }
     });
   }
@@ -57,12 +57,12 @@ document.addEventListener('DOMContentLoaded', function() {
       
       urlItem.innerHTML = `
         <div class="url-meta">
-          <span>規則: ${urlData.rule.name || urlData.rule.type}</span>
+          <span>${getMessage('rule')}: ${urlData.rule.name || urlData.rule.type}</span>
           <span>${timeString}</span>
         </div>
         <div class="url-text">${urlData.url}</div>
         <div class="url-actions">
-          <button class="copy-btn" data-url="${encodeURIComponent(urlData.url)}">複製URL</button>
+          <button class="copy-btn" data-url="${encodeURIComponent(urlData.url)}">${getMessage('copyUrl')}</button>
         </div>
       `;
       
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const url = decodeURIComponent(this.getAttribute('data-url'));
         navigator.clipboard.writeText(url).then(() => {
           const originalText = this.textContent;
-          this.textContent = '已複製!';
+          this.textContent = getMessage('copied');
           this.style.background = '#61dafb';
           
           setTimeout(() => {
@@ -84,9 +84,9 @@ document.addEventListener('DOMContentLoaded', function() {
           }, 1500);
         }).catch(err => {
           console.error('Failed to copy URL:', err);
-          this.textContent = '複製失敗';
+          this.textContent = getMessage('copyFailed');
           setTimeout(() => {
-            this.textContent = '複製URL';
+            this.textContent = getMessage('copyUrl');
           }, 1500);
         });
       });
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Clear button
   clearBtn.addEventListener('click', function() {
-    if (confirm('確定要清除所有找到的URL嗎？')) {
+    if (confirm(getMessage('confirmClearAll'))) {
       chrome.runtime.sendMessage({ action: 'clearFoundUrls' }, (response) => {
         if (response && response.success) {
           loadUrls();

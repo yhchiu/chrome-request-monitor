@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Overlay settings elements
   const maxOverlays = document.getElementById('maxOverlays');
   const overlayTimeout = document.getElementById('overlayTimeout');
-  const saveOverlaySettings = document.getElementById('saveOverlaySettings');
+  const saveButton = document.getElementById('saveButton');
   
   // Tab switching functionality
   function switchTab(tabName) {
@@ -281,19 +281,19 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Help text for different rule types
   const helpTexts = {
-    contains: '輸入URL中應包含的文字，例如：api.example.com',
-    startswith: '輸入URL的開頭部分，例如：https://api.',
-    endswith: '輸入URL的結尾部分，例如：.json 或 /api/data',
-    regex: '輸入正則表達式，例如：/api/v\\d+/users （不需要包含斜線）'
+    contains: () => getMessage('helpContains'),
+    startswith: () => getMessage('helpStartswith'),
+    endswith: () => getMessage('helpEndswith'),
+    regex: () => getMessage('helpRegex')
   };
   
   // Update help text when rule type changes
   ruleType.addEventListener('change', function() {
     const selectedType = this.value;
     if (selectedType && helpTexts[selectedType]) {
-      ruleHelp.textContent = helpTexts[selectedType];
+      ruleHelp.textContent = helpTexts[selectedType]();
     } else {
-      ruleHelp.textContent = '請先選擇匹配類型';
+      ruleHelp.textContent = getMessage('selectMatchTypeFirst');
     }
   });
   
@@ -332,19 +332,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Save overlay settings
-  function saveOverlaySettingsFunction() {
+  // Save settings
+  function saveSettingsFunction() {
     const maxValue = parseInt(maxOverlays.value);
     const timeoutValue = parseInt(overlayTimeout.value);
     
     // Validate input
     if (maxValue < 1 || maxValue > 20) {
-      showAlert('最大覆蓋框數量必須在1-20之間', 'error');
+      showAlert(getMessage('errorMaxOverlaysRange'), 'error');
       return;
     }
     
     if (timeoutValue < 5 || timeoutValue > 300) {
-      showAlert('超時時間必須在5-300秒之間', 'error');
+      showAlert(getMessage('errorTimeoutRange'), 'error');
       return;
     }
     
@@ -355,9 +355,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     chrome.storage.sync.set({ overlaySettings: settings }, function() {
       if (chrome.runtime.lastError) {
-        showAlert('儲存覆蓋框設定時發生錯誤：' + chrome.runtime.lastError.message, 'error');
+        showAlert(getMessage('errorSavingSettings', [chrome.runtime.lastError.message]), 'error');
       } else {
-        showAlert('覆蓋框設定已成功儲存！');
+        showAlert(getMessage('settingsSaved'));
       }
     });
   }
@@ -368,9 +368,9 @@ document.addEventListener('DOMContentLoaded', function() {
       rulesList.innerHTML = `
         <div class="empty-state">
           <div class="icon">🔍</div>
-          <div>尚未設定任何規則</div>
+          <div>${getMessage('noRulesYet')}</div>
           <div style="font-size: 12px; margin-top: 8px; color: #999;">
-            新增第一個規則來開始監控網絡請求
+            ${getMessage('addFirstRule')}
           </div>
         </div>
       `;
@@ -385,10 +385,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Format rule type display
         const typeLabels = {
-          contains: '包含',
-          startswith: '開頭匹配',
-          endswith: '結尾匹配',
-          regex: '正則表達式'
+          contains: getMessage('matchTypeContains'),
+          startswith: getMessage('matchTypeStartswith'),
+          endswith: getMessage('matchTypeEndswith'),
+          regex: getMessage('matchTypeRegex')
         };
         
         ruleItem.innerHTML = `
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <div class="rule-actions">
             <button class="btn btn-danger btn-sm delete-rule" data-index="${index}">
-              🗑️ 刪除
+              ${getMessage('deleteRule')}
             </button>
           </div>
         `;
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const value = document.getElementById('ruleValue').value.trim();
     
     if (!name || !type || !value) {
-      showAlert('請填寫所有必填欄位', 'error');
+      showAlert(getMessage('errorAllFieldsRequired'), 'error');
       return;
     }
     
@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         new RegExp(value);
       } catch (e) {
-        showAlert('正則表達式格式不正確：' + e.message, 'error');
+        showAlert(getMessage('errorInvalidRegex', [e.message]), 'error');
         return;
       }
     }
@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Check for duplicate names
       if (rules.some(rule => rule.name.toLowerCase() === name.toLowerCase())) {
-        showAlert('規則名稱已存在，請使用不同的名稱', 'error');
+        showAlert(getMessage('errorDuplicateRuleName'), 'error');
         return;
       }
       
@@ -465,11 +465,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // Save to storage
       chrome.storage.sync.set({ urlRules: rules }, function() {
         if (chrome.runtime.lastError) {
-          showAlert('儲存規則時發生錯誤：' + chrome.runtime.lastError.message, 'error');
+          showAlert(getMessage('errorSavingRule', [chrome.runtime.lastError.message]), 'error');
         } else {
-          showAlert('規則已成功新增！');
+          showAlert(getMessage('ruleAddedSuccess'));
           ruleForm.reset();
-          ruleHelp.textContent = '請先選擇匹配類型';
+          ruleHelp.textContent = getMessage('selectMatchTypeFirst');
           loadRules();
         }
       });
@@ -478,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Delete rule
   function deleteRule(index) {
-    if (confirm('確定要刪除這個規則嗎？')) {
+    if (confirm(getMessage('confirmDeleteRule'))) {
       chrome.storage.sync.get(['urlRules'], function(result) {
         const rules = result.urlRules || [];
         
@@ -487,9 +487,9 @@ document.addEventListener('DOMContentLoaded', function() {
           
           chrome.storage.sync.set({ urlRules: rules }, function() {
             if (chrome.runtime.lastError) {
-              showAlert('刪除規則時發生錯誤：' + chrome.runtime.lastError.message, 'error');
+              showAlert(getMessage('errorDeletingRule', [chrome.runtime.lastError.message]), 'error');
             } else {
-              showAlert(`規則「${deletedRule.name}」已刪除`);
+              showAlert(getMessage('ruleDeletedSuccess', [deletedRule.name]));
               loadRules();
             }
           });
@@ -500,12 +500,12 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Clear all rules
   clearAllBtn.addEventListener('click', function() {
-    if (confirm('確定要刪除所有規則嗎？此操作無法復原。')) {
+    if (confirm(getMessage('confirmClearAllRules'))) {
       chrome.storage.sync.set({ urlRules: [] }, function() {
         if (chrome.runtime.lastError) {
-          showAlert('清除規則時發生錯誤：' + chrome.runtime.lastError.message, 'error');
+          showAlert(getMessage('errorClearingRules', [chrome.runtime.lastError.message]), 'error');
         } else {
-          showAlert('所有規則已清除');
+          showAlert(getMessage('allRulesCleared'));
           loadRules();
         }
       });
@@ -516,6 +516,6 @@ document.addEventListener('DOMContentLoaded', function() {
   loadRules();
   loadOverlaySettings();
   
-  // Overlay settings event listener
-  saveOverlaySettings.addEventListener('click', saveOverlaySettingsFunction);
+  // Settings event listener
+  saveButton.addEventListener('click', saveSettingsFunction);
 }); 

@@ -1,0 +1,440 @@
+{
+  "extensionName": {
+    "message": "網路連線監控器",
+    "description": "Extension name in Traditional Chinese"
+  },
+  "extensionDescription": {
+    "message": "監控網路連線並根據自定義規則尋找 URL",
+    "description": "Extension description in Traditional Chinese"
+  },
+  "actionTitle": {
+    "message": "網路連線監控器",
+    "description": "Extension icon tooltip in Traditional Chinese"
+  },
+  
+  "loading": {
+    "message": "載入中...",
+    "description": "Loading text in Traditional Chinese"
+  },
+  "loadingUrls": {
+    "message": "載入找到的URL...",
+    "description": "Loading URLs text in Traditional Chinese"
+  },
+  "refresh": {
+    "message": "刷新",
+    "description": "Refresh button text in Traditional Chinese"
+  },
+  "clearAll": {
+    "message": "清除全部",
+    "description": "Clear all button text in Traditional Chinese"
+  },
+  "settings": {
+    "message": "設定",
+    "description": "Settings button text in Traditional Chinese"
+  },
+  "showCurrentTabOnly": {
+    "message": "只顯示目前分頁",
+    "description": "Current tab filter checkbox in Traditional Chinese"
+  },
+  "currentTab": {
+    "message": "(目前分頁)",
+    "description": "Current tab filter indicator in Traditional Chinese"
+  },
+  "allTabs": {
+    "message": "(所有分頁)",
+    "description": "All tabs indicator in Traditional Chinese"
+  },
+  "foundUrls": {
+    "message": "找到 $COUNT$ 個URL $FILTER$",
+    "description": "URL count message in Traditional Chinese",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "filter": {
+        "content": "$2",
+        "example": "(目前分頁)"
+      }
+    }
+  },
+  "noMatchingUrls": {
+    "message": "尚未找到符合規則的URL",
+    "description": "Empty state title in Traditional Chinese"
+  },
+  "noMatchingUrlsHint": {
+    "message": "訪問網站時，符合規則的URL會顯示在這裡",
+    "description": "Empty state hint in Traditional Chinese"
+  },
+  "manageUrlRules": {
+    "message": "管理URL規則",
+    "description": "Footer link text in Traditional Chinese"
+  },
+  "copyUrl": {
+    "message": "複製URL",
+    "description": "Copy URL button text in Traditional Chinese"
+  },
+  "copied": {
+    "message": "已複製!",
+    "description": "Text shown after successful copy in Traditional Chinese"
+  },
+  "copyFailed": {
+    "message": "複製失敗",
+    "description": "Text shown after copy failure in Traditional Chinese"
+  },
+  "rule": {
+    "message": "規則",
+    "description": "Rule label in Traditional Chinese"
+  },
+  "confirmClearAll": {
+    "message": "確定要清除所有找到的URL嗎？",
+    "description": "Confirmation message for clearing all URLs in Traditional Chinese"
+  },
+  
+  "settingsTitle": {
+    "message": "網路連線監控器 - 設定",
+    "description": "Settings page title in Traditional Chinese"
+  },
+  "settingsHeader": {
+    "message": "🌐 網路連線監控器",
+    "description": "Settings page header in Traditional Chinese"
+  },
+  "settingsSubtitle": {
+    "message": "管理監控規則和設定",
+    "description": "Settings page subtitle in Traditional Chinese"
+  },
+  
+  "urlRulesSection": {
+    "message": "URL監控規則",
+    "description": "URL rules section title in Traditional Chinese"
+  },
+  "overlaySettingsSection": {
+    "message": "懸浮視窗",
+    "description": "Overlay settings section title in Traditional Chinese"
+  },
+  
+  "ruleName": {
+    "message": "規則名稱",
+    "description": "Rule name field label in Traditional Chinese"
+  },
+  "ruleNamePlaceholder": {
+    "message": "輸入規則名稱（例如：API請求）",
+    "description": "Rule name field placeholder in Traditional Chinese"
+  },
+  "matchType": {
+    "message": "匹配類型",
+    "description": "Match type field label in Traditional Chinese"
+  },
+  "selectMatchType": {
+    "message": "選擇匹配類型",
+    "description": "Match type dropdown default option in Traditional Chinese"
+  },
+  "matchValue": {
+    "message": "匹配值",
+    "description": "Match value field label in Traditional Chinese"
+  },
+  "matchValuePlaceholder": {
+    "message": "根據選擇的類型輸入匹配值",
+    "description": "Match value field placeholder in Traditional Chinese"
+  },
+  
+  "matchTypeContains": {
+    "message": "包含",
+    "description": "Contains match type in Traditional Chinese"
+  },
+  "matchTypeStartswith": {
+    "message": "開頭匹配",
+    "description": "Starts with match type in Traditional Chinese"
+  },
+  "matchTypeEndswith": {
+    "message": "結尾匹配",
+    "description": "Ends with match type in Traditional Chinese"
+  },
+  "matchTypeRegex": {
+    "message": "正則表達式",
+    "description": "Regular expression match type in Traditional Chinese"
+  },
+  
+  "helpContains": {
+    "message": "輸入URL中應包含的文字，例如：api.example.com",
+    "description": "Help text for contains match type in Traditional Chinese"
+  },
+  "helpStartswith": {
+    "message": "輸入URL的開頭部分，例如：https://api.",
+    "description": "Help text for starts with match type in Traditional Chinese"
+  },
+  "helpEndswith": {
+    "message": "輸入URL的結尾部分，例如：.json 或 /api/data",
+    "description": "Help text for ends with match type in Traditional Chinese"
+  },
+  "helpRegex": {
+    "message": "輸入正則表達式，例如：/api/v\\d+/users （不需要包含斜線）",
+    "description": "Help text for regex match type in Traditional Chinese"
+  },
+  "selectMatchTypeFirst": {
+    "message": "請先選擇匹配類型",
+    "description": "Help text when no match type is selected in Traditional Chinese"
+  },
+  
+  "addRule": {
+    "message": "新增規則",
+    "description": "Add rule button text in Traditional Chinese"
+  },
+  "clearAllRules": {
+    "message": "清除所有規則",
+    "description": "Clear all rules button text in Traditional Chinese"
+  },
+  
+  "maxOverlays": {
+    "message": "最大懸浮視窗數量",
+    "description": "Maximum overlays field label in Traditional Chinese"
+  },
+  "timeoutSeconds": {
+    "message": "超時時間（秒）",
+    "description": "Timeout field label in Traditional Chinese"
+  },
+  "saveButton": {
+    "message": "儲存",
+    "description": "Save button text in Traditional Chinese"
+  },
+  
+  "noRulesYet": {
+    "message": "尚未設定任何規則",
+    "description": "No rules message in Traditional Chinese"
+  },
+  "addFirstRule": {
+    "message": "新增第一個規則來開始監控網路連線",
+    "description": "Add first rule hint in Traditional Chinese"
+  },
+  "deleteRule": {
+    "message": "刪除",
+    "description": "Delete rule button text in Traditional Chinese"
+  },
+  
+  "errorAllFieldsRequired": {
+    "message": "請填寫所有必填欄位",
+    "description": "Error message for missing fields in Traditional Chinese"
+  },
+  "errorInvalidRegex": {
+    "message": "正則表達式格式不正確：$ERROR$",
+    "description": "Error message for invalid regex in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "未結束的群組"
+      }
+    }
+  },
+  "errorDuplicateRuleName": {
+    "message": "規則名稱已存在，請使用不同的名稱",
+    "description": "Error message for duplicate rule name in Traditional Chinese"
+  },
+  "errorSavingRule": {
+    "message": "儲存規則時發生錯誤：$ERROR$",
+    "description": "Error message for rule saving failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "儲存配額已滿"
+      }
+    }
+  },
+  "ruleAddedSuccess": {
+    "message": "規則已成功新增！",
+    "description": "Success message for rule addition in Traditional Chinese"
+  },
+  "confirmDeleteRule": {
+    "message": "確定要刪除這個規則嗎？",
+    "description": "Confirmation message for rule deletion in Traditional Chinese"
+  },
+  "errorDeletingRule": {
+    "message": "刪除規則時發生錯誤：$ERROR$",
+    "description": "Error message for rule deletion failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "儲存配額已滿"
+      }
+    }
+  },
+  "ruleDeletedSuccess": {
+    "message": "規則「$RULE_NAME$」已刪除",
+    "description": "Success message for rule deletion in Traditional Chinese",
+    "placeholders": {
+      "rule_name": {
+        "content": "$1",
+        "example": "API請求"
+      }
+    }
+  },
+  "confirmClearAllRules": {
+    "message": "確定要刪除所有規則嗎？此操作無法復原。",
+    "description": "Confirmation message for clearing all rules in Traditional Chinese"
+  },
+  "errorClearingRules": {
+    "message": "清除規則時發生錯誤：$ERROR$",
+    "description": "Error message for clearing rules failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "儲存配額已滿"
+      }
+    }
+  },
+  "allRulesCleared": {
+    "message": "所有規則已清除",
+    "description": "Success message for clearing all rules in Traditional Chinese"
+  },
+  "errorMaxOverlaysRange": {
+    "message": "最大懸浮視窗數量必須在1-20之間",
+    "description": "Error message for invalid max overlays value in Traditional Chinese"
+  },
+  "errorTimeoutRange": {
+    "message": "超時時間必須在5-300秒之間",
+    "description": "Error message for invalid timeout value in Traditional Chinese"
+  },
+  "errorSavingSettings": {
+    "message": "儲存設定時發生錯誤：$ERROR$",
+    "description": "Error message for settings saving failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "儲存配額已滿"
+      }
+    }
+  },
+  "settingsSaved": {
+    "message": "設定已成功儲存！",
+    "description": "Success message for settings save in Traditional Chinese"
+  },
+  
+  "overlayTitle": {
+    "message": "找到符合規則的URL:",
+    "description": "Overlay title text in Traditional Chinese"
+  },
+  "overlayPaused": {
+    "message": "⏸️ 已暫停",
+    "description": "Overlay paused indicator in Traditional Chinese"
+  },
+  "overlayClose": {
+    "message": "關閉",
+    "description": "Close overlay button text in Traditional Chinese"
+  },
+  "overlayCopy": {
+    "message": "複製",
+    "description": "Copy overlay button text in Traditional Chinese"
+  },
+  
+  "addUrlRuleSection": {
+    "message": "新增URL規則",
+    "description": "Add URL rule section title in Traditional Chinese"
+  },
+  "ruleNameHelpText": {
+    "message": "給這個規則一個容易識別的名稱",
+    "description": "Help text for rule name field in Traditional Chinese"
+  },
+  "examplesTitle": {
+    "message": "💡 範例：",
+    "description": "Examples section title in Traditional Chinese"
+  },
+  "exampleContains": {
+    "message": "包含：",
+    "description": "Contains example label in Traditional Chinese"
+  },
+  "exampleContainsDesc": {
+    "message": "匹配包含此文字的URL",
+    "description": "Contains example description in Traditional Chinese"
+  },
+  "exampleStartswith": {
+    "message": "開頭匹配：",
+    "description": "Starts with example label in Traditional Chinese"
+  },
+  "exampleStartswithDesc": {
+    "message": "匹配以此開頭的URL",
+    "description": "Starts with example description in Traditional Chinese"
+  },
+  "exampleEndswith": {
+    "message": "結尾匹配：",
+    "description": "Ends with example label in Traditional Chinese"
+  },
+  "exampleEndswithDesc": {
+    "message": "匹配以此結尾的URL",
+    "description": "Ends with example description in Traditional Chinese"
+  },
+  "exampleRegex": {
+    "message": "正則表達式：",
+    "description": "Regular expression example label in Traditional Chinese"
+  },
+  "exampleRegexDesc": {
+    "message": "匹配API版本號的用戶端點",
+    "description": "Regular expression example description in Traditional Chinese"
+  },
+  "currentRulesSection": {
+    "message": "目前的規則列表",
+    "description": "Current rules section title in Traditional Chinese"
+  },
+  "usageInstructionsTitle": {
+    "message": "使用說明",
+    "description": "Usage instructions section title in Traditional Chinese"
+  },
+  "usageInstruction1": {
+    "message": "設定完規則後，當您瀏覽網站時，符合規則的URL會自動顯示在頁面上的懸浮視窗中",
+    "description": "First usage instruction in Traditional Chinese"
+  },
+  "usageInstruction2": {
+    "message": "您可以點擊擴展圖標打開彈出窗口查看所有找到的URL",
+    "description": "Second usage instruction in Traditional Chinese"
+  },
+  "usageInstruction3": {
+    "message": "正則表達式匹配區分大小寫，其他匹配類型不區分大小寫",
+    "description": "Third usage instruction in Traditional Chinese"
+  },
+  "usageInstruction4": {
+    "message": "建議從簡單的「包含」匹配開始，再逐步使用更複雜的規則",
+    "description": "Fourth usage instruction in Traditional Chinese"
+  },
+  "overlaySettingsTitle": {
+    "message": "懸浮視窗設定",
+    "description": "Overlay settings section title in Traditional Chinese"
+  },
+  "maxOverlaysHelpText": {
+    "message": "同時顯示的懸浮視窗最大數量 (1-20)",
+    "description": "Help text for max overlays field in Traditional Chinese"
+  },
+  "timeoutHelpText": {
+    "message": "懸浮視窗自動消失的時間 (5-300秒)",
+    "description": "Help text for timeout field in Traditional Chinese"
+  },
+  "overlayExplanationTitle": {
+    "message": "💡 說明：",
+    "description": "Overlay explanation section title in Traditional Chinese"
+  },
+  "overlayMaxLabel": {
+    "message": "最大數量：",
+    "description": "Overlay maximum number label in Traditional Chinese"
+  },
+  "overlayMaxExplanation": {
+    "message": "當達到最大數量時，新的懸浮視窗會替換最舊的",
+    "description": "Overlay maximum number explanation in Traditional Chinese"  
+  },
+  "overlayTimeoutLabel": {
+    "message": "超時時間：",
+    "description": "Overlay timeout label in Traditional Chinese"
+  },
+  "overlayTimeoutExplanation": {
+    "message": "懸浮視窗會在指定時間後自動消失",
+    "description": "Overlay timeout explanation in Traditional Chinese"
+  },
+  "overlayDefaultLabel": {
+    "message": "預設值：",
+    "description": "Overlay default values label in Traditional Chinese"
+  },
+  "overlayDefaultExplanation": {
+    "message": "最大5個懸浮視窗，30秒後自動消失",
+    "description": "Overlay default values explanation in Traditional Chinese"
+  },
+  "moreOptions": {
+    "message": "更多",
+    "description": "More options button text in Traditional Chinese"
+  }
+} 

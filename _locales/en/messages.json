@@ -1,0 +1,429 @@
+{
+  "extensionName": {
+    "message": "Network Request Monitor",
+    "description": "Name of the extension"
+  },
+  "extensionDescription": {
+    "message": "Monitor network requests and find URLs based on custom rules",
+    "description": "Description of the extension"
+  },
+  "actionTitle": {
+    "message": "Network Request Monitor",
+    "description": "Tooltip for the extension icon"
+  },
+  "loading": {
+    "message": "Loading...",
+    "description": "Loading text"
+  },
+  "loadingUrls": {
+    "message": "Loading found URLs...",
+    "description": "Loading URLs text"
+  },
+  "refresh": {
+    "message": "Refresh",
+    "description": "Refresh button text"
+  },
+  "clearAll": {
+    "message": "Clear All",
+    "description": "Clear all button text"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings button text"
+  },
+  "showCurrentTabOnly": {
+    "message": "Current tab only",
+    "description": "Checkbox label for current tab filter"
+  },
+  "currentTab": {
+    "message": "(Current tab)",
+    "description": "Current tab filter indicator"
+  },
+  "allTabs": {
+    "message": "(All tabs)",
+    "description": "All tabs indicator"
+  },
+  "foundUrls": {
+    "message": "Found $COUNT$ URLs $FILTER$",
+    "description": "URL count message",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "filter": {
+        "content": "$2",
+        "example": "(Current tab)"
+      }
+    }
+  },
+  "noMatchingUrls": {
+    "message": "No matching URLs found yet",
+    "description": "Empty state title"
+  },
+  "noMatchingUrlsHint": {
+    "message": "URLs matching your rules will appear here when you visit websites",
+    "description": "Empty state hint"
+  },
+  "manageUrlRules": {
+    "message": "Manage URL Rules",
+    "description": "Footer link text"
+  },
+  "copyUrl": {
+    "message": "Copy URL",
+    "description": "Copy URL button text"
+  },
+  "copied": {
+    "message": "Copied!",
+    "description": "Text shown after successful copy"
+  },
+  "copyFailed": {
+    "message": "Copy failed",
+    "description": "Text shown after copy failure"
+  },
+  "rule": {
+    "message": "Rule",
+    "description": "Rule label"
+  },
+  "confirmClearAll": {
+    "message": "Are you sure you want to clear all found URLs?",
+    "description": "Confirmation message for clearing all URLs"
+  },
+  "settingsTitle": {
+    "message": "Network Request Monitor - Settings",
+    "description": "Settings page title"
+  },
+  "settingsHeader": {
+    "message": "🌐 Network Request Monitor",
+    "description": "Settings page header"
+  },
+  "settingsSubtitle": {
+    "message": "Manage monitoring rules and settings",
+    "description": "Settings page subtitle"
+  },
+  "urlRulesSection": {
+    "message": "URL Monitoring Rules",
+    "description": "URL rules section title"
+  },
+  "overlaySettingsSection": {
+    "message": "Overlay Window",
+    "description": "Overlay settings section title"
+  },
+  "ruleName": {
+    "message": "Rule Name",
+    "description": "Rule name field label"
+  },
+  "ruleNamePlaceholder": {
+    "message": "Enter rule name (e.g., API Requests)",
+    "description": "Rule name field placeholder"
+  },
+  "matchType": {
+    "message": "Match Type",
+    "description": "Match type field label"
+  },
+  "selectMatchType": {
+    "message": "Select match type",
+    "description": "Match type dropdown default option"
+  },
+  "matchValue": {
+    "message": "Match Value",
+    "description": "Match value field label"
+  },
+  "matchValuePlaceholder": {
+    "message": "Enter match value based on selected type",
+    "description": "Match value field placeholder"
+  },
+  "matchTypeContains": {
+    "message": "Contains",
+    "description": "Contains match type"
+  },
+  "matchTypeStartswith": {
+    "message": "Starts with",
+    "description": "Starts with match type"
+  },
+  "matchTypeEndswith": {
+    "message": "Ends with",
+    "description": "Ends with match type"
+  },
+  "matchTypeRegex": {
+    "message": "Regular Expression",
+    "description": "Regular expression match type"
+  },
+  "helpContains": {
+    "message": "Enter text that should be contained in the URL, e.g.: api.example.com",
+    "description": "Help text for contains match type"
+  },
+  "helpStartswith": {
+    "message": "Enter the beginning part of the URL, e.g.: https://api.",
+    "description": "Help text for starts with match type"
+  },
+  "helpEndswith": {
+    "message": "Enter the ending part of the URL, e.g.: .json or /api/data",
+    "description": "Help text for ends with match type"
+  },
+  "helpRegex": {
+    "message": "Enter regular expression, e.g.: /api/v\\d+/users (do not include slashes)",
+    "description": "Help text for regex match type"
+  },
+  "selectMatchTypeFirst": {
+    "message": "Please select a match type first",
+    "description": "Help text when no match type is selected"
+  },
+  "addRule": {
+    "message": "Add Rule",
+    "description": "Add rule button text"
+  },
+  "clearAllRules": {
+    "message": "Clear All Rules",
+    "description": "Clear all rules button text"
+  },
+  "maxOverlays": {
+    "message": "Maximum Overlays",
+    "description": "Maximum overlays field label"
+  },
+  "timeoutSeconds": {
+    "message": "Timeout (seconds)",
+    "description": "Timeout field label"
+  },
+  "saveButton": {
+    "message": "Save",
+    "description": "Save button text"
+  },
+  "noRulesYet": {
+    "message": "No rules configured yet",
+    "description": "No rules message"
+  },
+  "addFirstRule": {
+    "message": "Add your first rule to start monitoring network requests",
+    "description": "Add first rule hint"
+  },
+  "deleteRule": {
+    "message": "Delete",
+    "description": "Delete rule button text"
+  },
+  "errorAllFieldsRequired": {
+    "message": "Please fill in all required fields",
+    "description": "Error message for missing fields"
+  },
+  "errorInvalidRegex": {
+    "message": "Invalid regular expression format: $ERROR$",
+    "description": "Error message for invalid regex",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Unterminated group"
+      }
+    }
+  },
+  "errorDuplicateRuleName": {
+    "message": "Rule name already exists, please use a different name",
+    "description": "Error message for duplicate rule name"
+  },
+  "errorSavingRule": {
+    "message": "Error saving rule: $ERROR$",
+    "description": "Error message for rule saving failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
+  "ruleAddedSuccess": {
+    "message": "Rule added successfully!",
+    "description": "Success message for rule addition"
+  },
+  "confirmDeleteRule": {
+    "message": "Are you sure you want to delete this rule?",
+    "description": "Confirmation message for rule deletion"
+  },
+  "errorDeletingRule": {
+    "message": "Error deleting rule: $ERROR$",
+    "description": "Error message for rule deletion failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
+  "ruleDeletedSuccess": {
+    "message": "Rule \"$RULE_NAME$\" has been deleted",
+    "description": "Success message for rule deletion",
+    "placeholders": {
+      "rule_name": {
+        "content": "$1",
+        "example": "API Requests"
+      }
+    }
+  },
+  "confirmClearAllRules": {
+    "message": "Are you sure you want to delete all rules? This action cannot be undone.",
+    "description": "Confirmation message for clearing all rules"
+  },
+  "errorClearingRules": {
+    "message": "Error clearing rules: $ERROR$",
+    "description": "Error message for clearing rules failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
+  "allRulesCleared": {
+    "message": "All rules have been cleared",
+    "description": "Success message for clearing all rules"
+  },
+  "errorMaxOverlaysRange": {
+    "message": "Maximum overlays must be between 1-20",
+    "description": "Error message for invalid max overlays value"
+  },
+  "errorTimeoutRange": {
+    "message": "Timeout must be between 5-300 seconds",
+    "description": "Error message for invalid timeout value"
+  },
+  "errorSavingSettings": {
+    "message": "Error saving settings: $ERROR$",
+    "description": "Error message for settings saving failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
+  "settingsSaved": {
+    "message": "Settings saved successfully!",
+    "description": "Success message for settings save"
+  },
+  "overlayTitle": {
+    "message": "Found matching URL:",
+    "description": "Overlay title text"
+  },
+  "overlayPaused": {
+    "message": "⏸️ Paused",
+    "description": "Overlay paused indicator"
+  },
+  "overlayClose": {
+    "message": "Close",
+    "description": "Close overlay button text"
+  },
+  "overlayCopy": {
+    "message": "Copy",
+    "description": "Copy overlay button text"
+  },
+  
+  "addUrlRuleSection": {
+    "message": "Add URL Rule",
+    "description": "Add URL rule section title"
+  },
+  "ruleNameHelpText": {
+    "message": "Give this rule an easy-to-identify name",
+    "description": "Help text for rule name field"
+  },
+  "examplesTitle": {
+    "message": "💡 Examples:",
+    "description": "Examples section title"
+  },
+  "exampleContains": {
+    "message": "Contains:",
+    "description": "Contains example label"
+  },
+  "exampleContainsDesc": {
+    "message": "Matches URLs containing this text",
+    "description": "Contains example description"
+  },
+  "exampleStartswith": {
+    "message": "Starts with:",
+    "description": "Starts with example label"  
+  },
+  "exampleStartswithDesc": {
+    "message": "Matches URLs starting with this text",
+    "description": "Starts with example description"
+  },
+  "exampleEndswith": {
+    "message": "Ends with:",
+    "description": "Ends with example label"
+  },
+  "exampleEndswithDesc": {
+    "message": "Matches URLs ending with this text",
+    "description": "Ends with example description"
+  },
+  "exampleRegex": {
+    "message": "Regular Expression:",
+    "description": "Regular expression example label"
+  },
+  "exampleRegexDesc": {
+    "message": "Matches API version number user endpoints",
+    "description": "Regular expression example description"
+  },
+  "currentRulesSection": {
+    "message": "Current Rules List",
+    "description": "Current rules section title"
+  },
+  "usageInstructionsTitle": {
+    "message": "Usage Instructions",
+    "description": "Usage instructions section title"
+  },
+  "usageInstruction1": {
+    "message": "After setting up rules, matching URLs will automatically appear in overlay boxes on pages when you browse websites",
+    "description": "First usage instruction"
+  },
+  "usageInstruction2": {
+    "message": "You can click the extension icon to open the popup window to view all found URLs",
+    "description": "Second usage instruction"
+  },
+  "usageInstruction3": {
+    "message": "Regular expression matching is case-sensitive, other match types are case-insensitive",
+    "description": "Third usage instruction"
+  },
+  "usageInstruction4": {
+    "message": "It's recommended to start with simple \"Contains\" matching, and then gradually use more complex rules",
+    "description": "Fourth usage instruction"
+  },
+  "overlaySettingsTitle": {
+    "message": "Overlay Settings",
+    "description": "Overlay settings section title"
+  },
+  "maxOverlaysHelpText": {
+    "message": "Maximum number of overlays displayed simultaneously (1-20)",
+    "description": "Help text for max overlays field"
+  },
+  "timeoutHelpText": {
+    "message": "Time for overlays to automatically disappear (5-300 seconds)",
+    "description": "Help text for timeout field"
+  },
+  "overlayExplanationTitle": {
+    "message": "💡 Explanation:",
+    "description": "Overlay explanation section title"
+  },
+  "overlayMaxLabel": {
+    "message": "Maximum Overlays:",
+    "description": "Overlay maximum number label"
+  },
+  "overlayMaxExplanation": {
+    "message": "When the maximum number is reached, the new overlay box will replace the oldest one",
+    "description": "Overlay maximum number explanation"
+  },
+  "overlayTimeoutLabel": {
+    "message": "Timeout:",
+    "description": "Overlay timeout label"
+  },
+  "overlayTimeoutExplanation": {
+    "message": "The overlay box will automatically disappear after the specified time",
+    "description": "Overlay timeout explanation"
+  },
+  "overlayDefaultLabel": {
+    "message": "Default Values:",
+    "description": "Overlay default values label"
+  },
+  "overlayDefaultExplanation": {
+    "message": "Maximum 5 overlays, automatically disappear after 30 seconds",
+    "description": "Overlay default values explanation"
+  },
+  "moreOptions": {
+    "message": "More",
+    "description": "More options button text"
+  }
+} 

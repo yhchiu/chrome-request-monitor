@@ -1,0 +1,440 @@
+{
+  "extensionName": {
+    "message": "网络连接监控器",
+    "description": "Extension name in Simplified Chinese"
+  },
+  "extensionDescription": {
+    "message": "监控网络连接并根据自定义规则查找 URL",
+    "description": "Extension description in Simplified Chinese"
+  },
+  "actionTitle": {
+    "message": "网络连接监控器",
+    "description": "Extension icon tooltip in Simplified Chinese"
+  },
+  
+  "loading": {
+    "message": "加载中...",
+    "description": "Loading text in Simplified Chinese"
+  },
+  "loadingUrls": {
+    "message": "加载找到的URL...",
+    "description": "Loading URLs text in Simplified Chinese"
+  },
+  "refresh": {
+    "message": "刷新",
+    "description": "Refresh button text in Simplified Chinese"
+  },
+  "clearAll": {
+    "message": "清除全部",
+    "description": "Clear all button text in Simplified Chinese"
+  },
+  "settings": {
+    "message": "设置",
+    "description": "Settings button text in Simplified Chinese"
+  },
+  "showCurrentTabOnly": {
+    "message": "只显示当前标签页",
+    "description": "Current tab filter checkbox in Simplified Chinese"
+  },
+  "currentTab": {
+    "message": "(当前标签页)",
+    "description": "Current tab filter indicator in Simplified Chinese"
+  },
+  "allTabs": {
+    "message": "(所有标签页)",
+    "description": "All tabs indicator in Simplified Chinese"
+  },
+  "foundUrls": {
+    "message": "找到 $COUNT$ 个URL $FILTER$",
+    "description": "URL count message in Simplified Chinese",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "filter": {
+        "content": "$2",
+        "example": "(当前标签页)"
+      }
+    }
+  },
+  "noMatchingUrls": {
+    "message": "尚未找到符合规则的URL",
+    "description": "Empty state title in Simplified Chinese"
+  },
+  "noMatchingUrlsHint": {
+    "message": "访问网站时，符合规则的URL会显示在这里",
+    "description": "Empty state hint in Simplified Chinese"
+  },
+  "manageUrlRules": {
+    "message": "管理URL规则",
+    "description": "Footer link text in Simplified Chinese"
+  },
+  "copyUrl": {
+    "message": "复制URL",
+    "description": "Copy URL button text in Simplified Chinese"
+  },
+  "copied": {
+    "message": "已复制!",
+    "description": "Text shown after successful copy in Simplified Chinese"
+  },
+  "copyFailed": {
+    "message": "复制失败",
+    "description": "Text shown after copy failure in Simplified Chinese"
+  },
+  "rule": {
+    "message": "规则",
+    "description": "Rule label in Simplified Chinese"
+  },
+  "confirmClearAll": {
+    "message": "确定要清除所有找到的URL吗？",
+    "description": "Confirmation message for clearing all URLs in Simplified Chinese"
+  },
+  
+  "settingsTitle": {
+    "message": "网络连接监控器 - 设置",
+    "description": "Settings page title in Simplified Chinese"
+  },
+  "settingsHeader": {
+    "message": "🌐 网络连接监控器",
+    "description": "Settings page header in Simplified Chinese"
+  },
+  "settingsSubtitle": {
+    "message": "管理监控规则和设置",
+    "description": "Settings page subtitle in Simplified Chinese"
+  },
+  
+  "urlRulesSection": {
+    "message": "URL监控规则",
+    "description": "URL rules section title in Simplified Chinese"
+  },
+  "overlaySettingsSection": {
+    "message": "悬浮窗口",
+    "description": "Overlay settings section title in Simplified Chinese"
+  },
+  
+  "ruleName": {
+    "message": "规则名称",
+    "description": "Rule name field label in Simplified Chinese"
+  },
+  "ruleNamePlaceholder": {
+    "message": "输入规则名称（例如：API请求）",
+    "description": "Rule name field placeholder in Simplified Chinese"
+  },
+  "matchType": {
+    "message": "匹配类型",
+    "description": "Match type field label in Simplified Chinese"
+  },
+  "selectMatchType": {
+    "message": "选择匹配类型",
+    "description": "Match type dropdown default option in Simplified Chinese"
+  },
+  "matchValue": {
+    "message": "匹配值",
+    "description": "Match value field label in Simplified Chinese"
+  },
+  "matchValuePlaceholder": {
+    "message": "根据选择的类型输入匹配值",
+    "description": "Match value field placeholder in Simplified Chinese"
+  },
+  
+  "matchTypeContains": {
+    "message": "包含",
+    "description": "Contains match type in Simplified Chinese"
+  },
+  "matchTypeStartswith": {
+    "message": "开头匹配",
+    "description": "Starts with match type in Simplified Chinese"
+  },
+  "matchTypeEndswith": {
+    "message": "结尾匹配",
+    "description": "Ends with match type in Simplified Chinese"
+  },
+  "matchTypeRegex": {
+    "message": "正则表达式",
+    "description": "Regular expression match type in Simplified Chinese"
+  },
+  
+  "helpContains": {
+    "message": "输入URL中应包含的文本，例如：api.example.com",
+    "description": "Help text for contains match type in Simplified Chinese"
+  },
+  "helpStartswith": {
+    "message": "输入URL的开头部分，例如：https://api.",
+    "description": "Help text for starts with match type in Simplified Chinese"
+  },
+  "helpEndswith": {
+    "message": "输入URL的结尾部分，例如：.json 或 /api/data",
+    "description": "Help text for ends with match type in Simplified Chinese"
+  },
+  "helpRegex": {
+    "message": "输入正则表达式，例如：/api/v\\d+/users （不需要包含斜线）",
+    "description": "Help text for regex match type in Simplified Chinese"
+  },
+  "selectMatchTypeFirst": {
+    "message": "请先选择匹配类型",
+    "description": "Help text when no match type is selected in Simplified Chinese"
+  },
+  
+  "addRule": {
+    "message": "新增规则",
+    "description": "Add rule button text in Simplified Chinese"
+  },
+  "clearAllRules": {
+    "message": "清除所有规则",
+    "description": "Clear all rules button text in Simplified Chinese"
+  },
+  
+  "maxOverlays": {
+    "message": "最大悬浮窗口数量",
+    "description": "Maximum overlays field label in Simplified Chinese"
+  },
+  "timeoutSeconds": {
+    "message": "超时时间（秒）",
+    "description": "Timeout field label in Simplified Chinese"
+  },
+  "saveButton": {
+    "message": "保存",
+    "description": "Save button text in Simplified Chinese"
+  },
+  
+  "noRulesYet": {
+    "message": "尚未设定任何规则",
+    "description": "No rules message in Simplified Chinese"
+  },
+  "addFirstRule": {
+    "message": "新增第一个规则来开始监控网络连接",
+    "description": "Add first rule hint in Simplified Chinese"
+  },
+  "deleteRule": {
+    "message": "删除",
+    "description": "Delete rule button text in Simplified Chinese"
+  },
+  
+  "errorAllFieldsRequired": {
+    "message": "请填写所有必填字段",
+    "description": "Error message for missing fields in Simplified Chinese"
+  },
+  "errorInvalidRegex": {
+    "message": "正则表达式格式不正确：$ERROR$",
+    "description": "Error message for invalid regex in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "未结束的组"
+      }
+    }
+  },
+  "errorDuplicateRuleName": {
+    "message": "规则名称已存在，请使用不同的名称",
+    "description": "Error message for duplicate rule name in Simplified Chinese"
+  },
+  "errorSavingRule": {
+    "message": "保存规则时发生错误：$ERROR$",
+    "description": "Error message for rule saving failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "存储配额已满"
+      }
+    }
+  },
+  "ruleAddedSuccess": {
+    "message": "规则已成功新增！",
+    "description": "Success message for rule addition in Simplified Chinese"
+  },
+  "confirmDeleteRule": {
+    "message": "确定要删除这个规则吗？",
+    "description": "Confirmation message for rule deletion in Simplified Chinese"
+  },
+  "errorDeletingRule": {
+    "message": "删除规则时发生错误：$ERROR$",
+    "description": "Error message for rule deletion failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "存储配额已满"
+      }
+    }
+  },
+  "ruleDeletedSuccess": {
+    "message": "规则「$RULE_NAME$」已删除",
+    "description": "Success message for rule deletion in Simplified Chinese",
+    "placeholders": {
+      "rule_name": {
+        "content": "$1",
+        "example": "API请求"
+      }
+    }
+  },
+  "confirmClearAllRules": {
+    "message": "确定要删除所有规则吗？此操作无法撤销。",
+    "description": "Confirmation message for clearing all rules in Simplified Chinese"
+  },
+  "errorClearingRules": {
+    "message": "清除规则时发生错误：$ERROR$",
+    "description": "Error message for clearing rules failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "存储配额已满"
+      }
+    }
+  },
+  "allRulesCleared": {
+    "message": "所有规则已清除",
+    "description": "Success message for clearing all rules in Simplified Chinese"
+  },
+  "errorMaxOverlaysRange": {
+    "message": "最大悬浮窗口数量必须在1-20之间",
+    "description": "Error message for invalid max overlays value in Simplified Chinese"
+  },
+  "errorTimeoutRange": {
+    "message": "超时时间必须在5-300秒之间",
+    "description": "Error message for invalid timeout value in Simplified Chinese"
+  },
+  "errorSavingSettings": {
+    "message": "保存设置时发生错误：$ERROR$",
+    "description": "Error message for settings saving failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "存储配额已满"
+      }
+    }
+  },
+  "settingsSaved": {
+    "message": "设置已成功保存！",
+    "description": "Success message for settings save in Simplified Chinese"
+  },
+  
+  "overlayTitle": {
+    "message": "找到符合规则的URL:",
+    "description": "Overlay title text in Simplified Chinese"
+  },
+  "overlayPaused": {
+    "message": "⏸️ 已暂停",
+    "description": "Overlay paused indicator in Simplified Chinese"
+  },
+  "overlayClose": {
+    "message": "关闭",
+    "description": "Close overlay button text in Simplified Chinese"
+  },
+  "overlayCopy": {
+    "message": "复制",
+    "description": "Copy overlay button text in Simplified Chinese"
+  },
+  
+  "addUrlRuleSection": {
+    "message": "新增URL规则",
+    "description": "Add URL rule section title in Simplified Chinese"
+  },
+  "ruleNameHelpText": {
+    "message": "给这个规则一个容易识别的名称",
+    "description": "Help text for rule name field in Simplified Chinese"
+  },
+  "examplesTitle": {
+    "message": "💡 示例：",
+    "description": "Examples section title in Simplified Chinese"
+  },
+  "exampleContains": {
+    "message": "包含：",
+    "description": "Contains example label in Simplified Chinese"
+  },
+  "exampleContainsDesc": {
+    "message": "匹配包含此文本的URL",
+    "description": "Contains example description in Simplified Chinese"
+  },
+  "exampleStartswith": {
+    "message": "开头匹配：",
+    "description": "Starts with example label in Simplified Chinese"
+  },
+  "exampleStartswithDesc": {
+    "message": "匹配以此开头的URL",
+    "description": "Starts with example description in Simplified Chinese"
+  },
+  "exampleEndswith": {
+    "message": "结尾匹配：",
+    "description": "Ends with example label in Simplified Chinese"
+  },
+  "exampleEndswithDesc": {
+    "message": "匹配以此结尾的URL",
+    "description": "Ends with example description in Simplified Chinese"
+  },
+  "exampleRegex": {
+    "message": "正则表达式：",
+    "description": "Regular expression example label in Simplified Chinese"
+  },
+  "exampleRegexDesc": {
+    "message": "匹配API版本号的用户端点",
+    "description": "Regular expression example description in Simplified Chinese"
+  },
+  "currentRulesSection": {
+    "message": "当前规则列表",
+    "description": "Current rules section title in Simplified Chinese"
+  },
+  "usageInstructionsTitle": {
+    "message": "使用说明",
+    "description": "Usage instructions section title in Simplified Chinese"
+  },
+  "usageInstruction1": {
+    "message": "设定完规则后，当您浏览网站时，符合规则的URL会自动显示在页面上的悬浮窗口中",
+    "description": "First usage instruction in Simplified Chinese"
+  },
+  "usageInstruction2": {
+    "message": "您可以点击扩展图标打开弹出窗口查看所有找到的URL",
+    "description": "Second usage instruction in Simplified Chinese"
+  },
+  "usageInstruction3": {
+    "message": "正则表达式匹配区分大小写，其他匹配类型不区分大小写",
+    "description": "Third usage instruction in Simplified Chinese"
+  },
+  "usageInstruction4": {
+    "message": "建议从简单的「包含」匹配开始，再逐步使用更复杂的规则",
+    "description": "Fourth usage instruction in Simplified Chinese"
+  },
+  "overlaySettingsTitle": {
+    "message": "悬浮窗口设置",
+    "description": "Overlay settings section title in Simplified Chinese"
+  },
+  "maxOverlaysHelpText": {
+    "message": "同时显示的悬浮窗口最大数量 (1-20)",
+    "description": "Help text for max overlays field in Simplified Chinese"
+  },
+  "timeoutHelpText": {
+    "message": "悬浮窗口自动消失的时间 (5-300秒)",
+    "description": "Help text for timeout field in Simplified Chinese"
+  },
+  "overlayExplanationTitle": {
+    "message": "💡 说明：",
+    "description": "Overlay explanation section title in Simplified Chinese"
+  },
+  "overlayMaxLabel": {
+    "message": "最大数量：",
+    "description": "Overlay maximum number label in Simplified Chinese"
+  },
+  "overlayMaxExplanation": {
+    "message": "当达到最大数量时，新的悬浮窗口会替换最旧的",
+    "description": "Overlay maximum number explanation in Simplified Chinese"  
+  },
+  "overlayTimeoutLabel": {
+    "message": "超时时间：",
+    "description": "Overlay timeout label in Simplified Chinese"
+  },
+  "overlayTimeoutExplanation": {
+    "message": "悬浮窗口会在指定时间后自动消失",
+    "description": "Overlay timeout explanation in Simplified Chinese"
+  },
+  "overlayDefaultLabel": {
+    "message": "默认值：",
+    "description": "Overlay default values label in Simplified Chinese"
+  },
+  "overlayDefaultExplanation": {
+    "message": "最大5个悬浮窗口，30秒后自动消失",
+    "description": "Overlay default values explanation in Simplified Chinese"
+  },
+  "moreOptions": {
+    "message": "更多",
+    "description": "More options button text in Simplified Chinese"
+  }
+} 

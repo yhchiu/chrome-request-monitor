@@ -88,6 +88,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ settings: settings });
     });
     return true; // Keep the message channel open for async response
+  } else if (request.action === 'getI18nMessage') {
+    // Handle i18n message requests from content scripts
+    const message = chrome.i18n.getMessage(request.key, request.substitutions);
+    sendResponse({ message: message });
   }
 });
 

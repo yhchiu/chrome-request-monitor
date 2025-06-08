@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "網絡請求監控器",
+  "name": "__MSG_extensionName__",
   "version": "1.0.0",
-  "description": "監控網絡請求並根據自定義規則查找URL",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   
   "permissions": [
     "activeTab",
@@ -30,7 +31,7 @@
   
   "action": {
     "default_popup": "popup.html",
-    "default_title": "網絡請求監控器"
+    "default_title": "__MSG_actionTitle__"
   },
   
   "options_page": "options.html",

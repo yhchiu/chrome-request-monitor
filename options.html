@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>網絡請求監控器 - 設定</title>
+  <title data-i18n="settingsTitle">Network Request Monitor - Settings</title>
   <style>
     * {
       box-sizing: border-box;
@@ -541,8 +541,8 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🌐 網絡請求監控器</h1>
-      <p>設定URL匹配規則來監控您感興趣的網絡請求</p>
+      <h1 data-i18n="settingsHeader">🌐 Network Request Monitor</h1>
+      <p data-i18n="settingsSubtitle">Manage monitoring rules and settings</p>
     </div>
     
     <div class="content">
@@ -552,12 +552,12 @@
       <div class="tabs-container">
         <div class="scroll-indicator left"></div>
         <div class="tabs" id="tabsContainer">
-          <button class="tab-button active" data-tab="rules">📝 URL規則管理</button>
-          <button class="tab-button" data-tab="overlay">📱 覆蓋框設定</button>
+          <button class="tab-button active" data-tab="rules" data-i18n="urlRulesSection">URL Monitoring Rules</button>
+          <button class="tab-button" data-tab="overlay" data-i18n="overlaySettingsSection">Overlay Window</button>
         </div>
         <div class="overflow-menu">
           <button class="overflow-button" id="overflowButton">
-            ⋯ 更多<span class="overflow-count" id="overflowCount">0</span>
+            ⋯ <span data-i18n="moreOptions">More</span><span class="overflow-count" id="overflowCount">0</span>
           </button>
           <div class="overflow-dropdown" id="overflowDropdown">
             <!-- Overflow tabs will be populated here -->
@@ -569,77 +569,77 @@
       <!-- Rules Tab Content -->
       <div id="rules-tab" class="tab-content active">
         <div class="section">
-          <h2>📝 新增URL規則</h2>
+          <h2 data-i18n="addUrlRuleSection">Add URL Rule</h2>
           
           <form id="ruleForm">
             <div class="form-row">
               <div class="form-group">
-                <label for="ruleName">規則名稱</label>
-                <input type="text" id="ruleName" class="form-control" placeholder="輸入規則的描述名稱" required>
-                <div class="help-text">給這個規則一個容易識別的名稱</div>
+                <label for="ruleName" data-i18n="ruleName">Rule Name</label>
+                <input type="text" id="ruleName" class="form-control" data-i18n-placeholder="ruleNamePlaceholder" placeholder="Enter rule name (e.g., API Requests)" required>
+                <div class="help-text" data-i18n="ruleNameHelpText">Give this rule an easy-to-identify name</div>
               </div>
               
               <div class="form-group">
-                <label for="ruleType">匹配類型</label>
+                <label for="ruleType" data-i18n="matchType">Match Type</label>
                 <select id="ruleType" class="form-control" required>
-                  <option value="">選擇匹配類型</option>
-                  <option value="contains">包含</option>
-                  <option value="startswith">開頭匹配</option>
-                  <option value="endswith">結尾匹配</option>
-                  <option value="regex">正則表達式</option>
+                  <option value="" data-i18n="selectMatchType">Select match type</option>
+                  <option value="contains" data-i18n="matchTypeContains">Contains</option>
+                  <option value="startswith" data-i18n="matchTypeStartswith">Starts with</option>
+                  <option value="endswith" data-i18n="matchTypeEndswith">Ends with</option>
+                  <option value="regex" data-i18n="matchTypeRegex">Regular Expression</option>
                 </select>
               </div>
             </div>
             
             <div class="form-group spacing-top">
-              <label for="ruleValue">匹配值</label>
-              <input type="text" id="ruleValue" class="form-control" placeholder="輸入要匹配的文字或正則表達式" required>
-              <div class="help-text" id="ruleHelp">請先選擇匹配類型</div>  
+              <label for="ruleValue" data-i18n="matchValue">Match Value</label>
+              <input type="text" id="ruleValue" class="form-control" data-i18n-placeholder="matchValuePlaceholder" placeholder="Enter match value based on selected type" required>
+              <div class="help-text" id="ruleHelp" data-i18n="selectMatchTypeFirst">Please select a match type first</div>  
             </div>
             
-            <button type="submit" class="btn btn-primary">
-              ➕ 新增規則
+            <button type="submit" class="btn btn-primary" data-i18n="addRule">
+              ➕ Add Rule
             </button>
           </form>
           
           <div class="examples">
-            <h4>💡 範例：</h4>
+            <h4 data-i18n="examplesTitle">💡 Examples:</h4>
             <ul>
-              <li><strong>包含：</strong> <code>api.example.com</code> - 匹配包含此文字的URL</li>
-              <li><strong>開頭匹配：</strong> <code>https://api.</code> - 匹配以此開頭的URL</li>
-              <li><strong>結尾匹配：</strong> <code>.json</code> - 匹配以此結尾的URL</li>
-              <li><strong>正則表達式：</strong> <code>/api/v\d+/users</code> - 匹配API版本號的用戶端點</li>
+              <li><strong data-i18n="exampleContains">Contains:</strong> <code>api.example.com</code> - <span data-i18n="exampleContainsDesc">Matches URLs containing this text</span></li>
+              <li><strong data-i18n="exampleStartswith">Starts with:</strong> <code>https://api.</code> - <span data-i18n="exampleStartswithDesc">Matches URLs starting with this text</span></li>
+              <li><strong data-i18n="exampleEndswith">Ends with:</strong> <code>.json</code> - <span data-i18n="exampleEndswithDesc">Matches URLs ending with this text</span></li>
+              <li><strong data-i18n="exampleRegex">Regular Expression:</strong> <code>/api/v\d+/users</code> - <span data-i18n="exampleRegexDesc">Matches API version number user endpoints</span></li>
             </ul>
           </div>
         </div>
         
         <div class="section">
-          <h2>📋 目前的規則列表</h2>
+          <h2 data-i18n="currentRulesSection">Current Rules List</h2>
           
           <div id="rulesList" class="rule-list">
             <div class="empty-state">
               <div class="icon">🔍</div>
-              <div>尚未設定任何規則</div>
-              <div style="font-size: 12px; margin-top: 8px; color: #999;">
-                新增第一個規則來開始監控網絡請求
+              <div data-i18n="noRulesYet">No rules yet</div>
+              <div style="font-size: 12px; margin-top: 8px; color: #999;" data-i18n="addFirstRule">
+                Add your first rule to start monitoring network requests
               </div>
             </div>
           </div>
           
           <div style="margin-top: 15px; text-align: right;">
-            <button id="clearAllBtn" class="btn btn-danger btn-sm" style="display: none;">
-              🗑️ 清除所有規則
+            <button id="clearAllBtn" class="btn btn-danger btn-sm" style="display: none;" data-i18n="clearAllRules">
+              Clear All Rules
             </button>
           </div>
         </div>
         
         <div class="section">
-          <h2>ℹ️ 使用說明</h2>
+          <h2 data-i18n="usageInstructionsTitle">Usage Instructions</h2>
           <ul style="line-height: 1.6; color: #555;">
-            <li>設定完規則後，當您瀏覽網站時，符合規則的URL會自動顯示在頁面上的覆蓋框中</li>
-            <li>您可以點擊擴展圖標打開彈出窗口查看所有找到的URL</li>
-            <li>正則表達式匹配區分大小寫，其他匹配類型不區分大小寫</li>
-            <li>建議從簡單的「包含」匹配開始，再逐步使用更複雜的規則</li>
+            <li data-i18n="usageInstruction1">After setting up rules, matching URLs will automatically appear in overlay boxes on pages when you browse websites</li>
+            <li data-i18n="usageInstruction2">You can click the extension icon to open the popup window to view all found URLs</li>
+            <li data-i18n="usageInstruction3">Regular expression matching is case-sensitive, other match types are case-insensitive</li>
+            <li data-i18n="usageInstruction4">It is recommended to start with simple "contains" matching, and then gradually use more complex rules</li>
           </ul>
         </div>
       </div>
@@ -647,32 +647,32 @@
       <!-- Overlay Settings Tab Content -->
       <div id="overlay-tab" class="tab-content">
         <div class="section">
-          <h2>📱 覆蓋框設定</h2>
+          <h2 data-i18n="overlaySettingsTitle">Overlay Settings</h2>
           
           <div class="form-row">
             <div class="form-group">
-              <label for="maxOverlays">最大覆蓋框數量</label>
+              <label for="maxOverlays" data-i18n="maxOverlays">Maximum Overlays</label>
               <input type="number" id="maxOverlays" class="form-control" min="1" max="20" value="5" required>
-              <div class="help-text">同時顯示的覆蓋框最大數量 (1-20)</div>
+              <div class="help-text" data-i18n="maxOverlaysHelpText">Maximum number of overlays displayed simultaneously (1-20)</div>
             </div>
             
             <div class="form-group">
-              <label for="overlayTimeout">覆蓋框超時時間 (秒)</label>
+              <label for="overlayTimeout" data-i18n="timeoutSeconds">Timeout (seconds)</label>
               <input type="number" id="overlayTimeout" class="form-control" min="5" max="300" value="30" required>
-              <div class="help-text">覆蓋框自動消失的時間 (5-300秒)</div>
+              <div class="help-text" data-i18n="timeoutHelpText">Time for overlays to automatically disappear (5-300 seconds)</div>
             </div>
           </div>
           
-          <button type="button" id="saveOverlaySettings" class="btn btn-success">
-            💾 儲存覆蓋框設定
+          <button type="button" id="saveButton" class="btn btn-success" data-i18n="saveButton">
+            Save
           </button>
           
           <div class="examples">
-            <h4>💡 說明：</h4>
+            <h4 data-i18n="overlayExplanationTitle">💡 Explanation:</h4>
             <ul>
-              <li><strong>最大數量：</strong>當達到最大數量時，新的覆蓋框會替換最舊的</li>
-              <li><strong>超時時間：</strong>覆蓋框會在指定時間後自動消失</li>
-              <li><strong>預設值：</strong>最大5個覆蓋框，30秒後自動消失</li>
+              <li><strong data-i18n="overlayMaxLabel">Maximum Overlays:</strong><span data-i18n="overlayMaxExplanation">When the maximum number is reached, the new overlay box will replace the oldest one</span></li>
+              <li><strong data-i18n="overlayTimeoutLabel">Timeout:</strong><span data-i18n="overlayTimeoutExplanation">The overlay box will automatically disappear after the specified time</span></li>
+              <li><strong data-i18n="overlayDefaultLabel">Default Values:</strong><span data-i18n="overlayDefaultExplanation">Maximum 5 overlays, automatically disappear after 30 seconds</span></li>
             </ul>
           </div>
         </div>
@@ -680,6 +680,7 @@
     </div>
   </div>
   
+  <script src="i18n.js"></script>
   <script src="options.js"></script>
 </body>
 </html> 
