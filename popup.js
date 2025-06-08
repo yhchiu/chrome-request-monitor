@@ -1,4 +1,17 @@
 // Popup script for Chrome extension
+
+// Helper function to escape HTML to prevent XSS
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const urlList = document.getElementById('urlList');
   const emptyState = document.getElementById('emptyState');
@@ -145,7 +158,13 @@ document.addEventListener('DOMContentLoaded', function() {
         second: '2-digit'
       });
       
+      // Get tab title, truncate if too long
+      const tabTitle = urlData.tabTitle || getMessage('unknown');
+      const displayTitle = tabTitle.length > 50 ? tabTitle.substring(0, 50) + '...' : tabTitle;
+      const tabPrefix = getMessage('tab') + ': ';
+      
       urlItem.innerHTML = `
+        <div class="tab-title" title="${escapeHtml(tabTitle)}" data-tab-prefix="${escapeHtml(tabPrefix)}">${escapeHtml(displayTitle)}</div>
         <div class="url-meta">
           <span>${getMessage('rule')}: ${urlData.rule.name || urlData.rule.type}</span>
           <span>${timeString}</span>

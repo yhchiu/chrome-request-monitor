@@ -86,6 +86,14 @@
     "message": "規則",
     "description": "Rule label in Traditional Chinese"
   },
+  "tab": {
+    "message": "分頁",
+    "description": "Tab label for tab title display in Traditional Chinese"
+  },
+  "unknown": {
+    "message": "未知",
+    "description": "Unknown text for missing tab title in Traditional Chinese"
+  },
   "confirmClearAll": {
     "message": "確定要清除所有找到的URL嗎？",
     "description": "Confirmation message for clearing all URLs in Traditional Chinese"

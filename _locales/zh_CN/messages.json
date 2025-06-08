@@ -86,6 +86,14 @@
     "message": "规则",
     "description": "Rule label in Simplified Chinese"
   },
+  "tab": {
+    "message": "标签页",
+    "description": "Tab label for tab title display in Simplified Chinese"
+  },
+  "unknown": {
+    "message": "未知",
+    "description": "Unknown text for missing tab title in Simplified Chinese"
+  },
   "confirmClearAll": {
     "message": "确定要清除所有找到的URL吗？",
     "description": "Confirmation message for clearing all URLs in Simplified Chinese"

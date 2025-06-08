@@ -105,11 +105,21 @@ chrome.webRequest.onBeforeRequest.addListener(
     });
     
     if (matchedRule) {
+      // Get tab information to include title
+      let tabTitle = chrome.i18n.getMessage('unknown') || 'Unknown';
+      try {
+        const tab = await chrome.tabs.get(details.tabId);
+        tabTitle = tab.title || chrome.i18n.getMessage('unknown') || 'Unknown';
+      } catch (error) {
+        console.warn(`[${chrome.i18n.getMessage('extensionName')}] Could not get tab title:`, error);
+      }
+      
       const urlData = {
         url: details.url,
         timestamp: Date.now(),
         rule: matchedRule,
-        tabId: details.tabId
+        tabId: details.tabId,
+        tabTitle: tabTitle
       };
       
       // Store the found URL using hybrid caching

@@ -227,6 +227,23 @@
       margin-bottom: 8px;
     }
     
+    .tab-title {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 4px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    
+    .tab-title::before {
+      content: attr(data-tab-prefix);
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: normal;
+    }
+    
     .url-actions {
       text-align: right;
     }

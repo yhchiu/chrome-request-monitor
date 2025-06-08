@@ -85,6 +85,14 @@
     "message": "Rule",
     "description": "Rule label"
   },
+  "tab": {
+    "message": "Tab",
+    "description": "Tab label for tab title display"
+  },
+  "unknown": {
+    "message": "Unknown",
+    "description": "Unknown text for missing tab title"
+  },
   "confirmClearAll": {
     "message": "Are you sure you want to clear all found URLs?",
     "description": "Confirmation message for clearing all URLs"
