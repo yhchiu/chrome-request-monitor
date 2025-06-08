@@ -226,24 +226,102 @@
       opacity: 0.5;
     }
     
-    .alert {
-      padding: 12px 16px;
-      border-radius: 6px;
-      margin-bottom: 20px;
-      border: 1px solid transparent;
+    /* Overlay Notice Styles */
+    .overlay-notice {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 320px;
+      max-width: 500px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      transform: translateX(100%);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      font-weight: 500;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
     
-    .alert-success {
-      background: #f0fff4;
-      color: #22543d;
-      border-color: #9ae6b4;
+         .overlay-notice.show {
+       opacity: 1;
+     }
+     
+     .overlay-notice.hide {
+       opacity: 0;
+     }
+    
+    .overlay-notice-success {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      color: white;
     }
     
-    .alert-error {
-      background: #fed7d7;
-      color: #742a2a;
-      border-color: #feb2b2;
+    .overlay-notice-error {
+      background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+      color: white;
     }
+    
+    .overlay-notice-warning {
+      background: linear-gradient(135deg, #ed8936 0%, #d69e2e 100%);
+      color: white;
+    }
+    
+    .overlay-notice-info {
+      background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+      color: white;
+    }
+    
+    .overlay-notice-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    
+    .overlay-notice-content {
+      flex: 1;
+      line-height: 1.4;
+    }
+    
+    .overlay-notice-close {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+    
+    .overlay-notice-close:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .overlay-notice-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 0 0 12px 12px;
+      transition: width linear;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+    }
+    
     
     .help-text {
       font-size: 12px;

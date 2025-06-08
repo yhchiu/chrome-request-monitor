@@ -297,18 +297,121 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Show alert message
-  function showAlert(message, type = 'success') {
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type}`;
-    alert.textContent = message;
+  // Show overlay notice message
+  function showAlert(message, type = 'success', duration = 5000) {
+    // Validate duration
+    if (duration < 5000 || duration > 30000) {
+      duration = 5000;
+    }
     
-    alertContainer.innerHTML = '';
-    alertContainer.appendChild(alert);
+    // Create overlay notice container if it doesn't exist
+    let noticeContainer = document.getElementById('overlayNoticeContainer');
+    if (!noticeContainer) {
+      noticeContainer = document.createElement('div');
+      noticeContainer.id = 'overlayNoticeContainer';
+      noticeContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 10000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(noticeContainer);
+    }
+
+    // Create notice element
+    const notice = document.createElement('div');
+    notice.className = `overlay-notice overlay-notice-${type}`;
+    notice.style.pointerEvents = 'auto';
     
-    setTimeout(() => {
-      alert.remove();
-    }, 5000);
+    // Get icon based on type
+    const icons = {
+      success: '✅',
+      error: '❌',
+      warning: '⚠️',
+      info: 'ℹ️'
+    };
+    
+    notice.innerHTML = `
+      <div class="overlay-notice-icon">${icons[type] || icons.success}</div>
+      <div class="overlay-notice-content">${message}</div>
+      <button class="overlay-notice-close" aria-label="關閉">×</button>
+      <div class="overlay-notice-progress"></div>
+    `;
+    
+    // Add to container
+    noticeContainer.appendChild(notice);
+    
+    // Position multiple notices
+    const existingNotices = noticeContainer.children.length;
+    const noticeIndex = existingNotices - 1;
+    
+    // Set initial position for all notices
+    notice.style.top = `${20 + noticeIndex * 80}px`;
+    notice.style.transform = `translateX(100%) scale(${1 - noticeIndex * 0.05})`;
+    
+        // Show animation
+    requestAnimationFrame(() => {
+      notice.style.transform = `translateX(0) scale(${1 - noticeIndex * 0.05})`;
+      notice.classList.add('show');
+      
+      // Progress bar animation - start after the notice is visible
+      const progressBar = notice.querySelector('.overlay-notice-progress');
+      
+      // Force initial state without transition
+      progressBar.style.transition = 'none';
+      progressBar.style.width = '100%';
+      
+      // Force reflow to ensure the width is applied
+      progressBar.offsetWidth;
+      
+      // Enable transition and start countdown
+      requestAnimationFrame(() => {
+        progressBar.style.transition = `width ${duration}ms linear`;
+        requestAnimationFrame(() => {
+          progressBar.style.width = '0%';
+        });
+      });
+    });
+    
+    // Close button functionality
+    const closeBtn = notice.querySelector('.overlay-notice-close');
+    closeBtn.addEventListener('click', () => {
+      removeNotice(notice);
+    });
+    
+    // Auto remove after duration
+    const timeoutId = setTimeout(() => {
+      removeNotice(notice);
+    }, duration);
+    
+    // Remove notice function
+    function removeNotice(noticeElement) {
+      clearTimeout(timeoutId);
+      
+      // Start hide animation
+      noticeElement.style.transform = `translateX(100%) ${noticeElement.style.transform.includes('scale') ? noticeElement.style.transform.split('scale')[1] : 'scale(1)'}`;
+      noticeElement.classList.remove('show');
+      noticeElement.classList.add('hide');
+      
+      setTimeout(() => {
+        if (noticeElement.parentNode) {
+          noticeElement.parentNode.removeChild(noticeElement);
+          
+          // Reposition remaining notices
+          const remainingNotices = Array.from(noticeContainer.children);
+          remainingNotices.forEach((notice, index) => {
+            notice.style.top = `${20 + index * 80}px`;
+            notice.style.transform = `translateX(0) scale(${1 - index * 0.05})`;
+          });
+        }
+      }, 400);
+    }
+    
+    // Clean up old alertContainer content (for backward compatibility)
+    if (alertContainer) {
+      alertContainer.innerHTML = '';
+    }
   }
   
   // Load and display rules
