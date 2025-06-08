@@ -230,6 +230,36 @@
     "message": "Delete",
     "description": "Delete rule button text"
   },
+  "editRule": {
+    "message": "Edit",
+    "description": "Edit rule button text"
+  },
+  "editRuleTitle": {
+    "message": "Edit URL Rule",
+    "description": "Edit rule section title"
+  },
+  "updateRule": {
+    "message": "Update Rule",
+    "description": "Update rule button text"
+  },
+  "cancelEdit": {
+    "message": "Cancel",
+    "description": "Cancel edit button text"
+  },
+  "ruleUpdatedSuccess": {
+    "message": "Rule updated successfully!",
+    "description": "Success message for rule update"
+  },
+  "errorUpdatingRule": {
+    "message": "Error updating rule: $ERROR$",
+    "description": "Error message for rule update failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
   "errorAllFieldsRequired": {
     "message": "Please fill in all required fields",
     "description": "Error message for missing fields"

@@ -156,6 +156,21 @@
       font-size: 12px;
     }
     
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    #formButtons {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
     .rule-list {
       background: white;
       border: 2px solid #e1e5e9;
@@ -651,6 +666,7 @@
           <h2 data-i18n="addUrlRuleSection">Add URL Rule</h2>
           
           <form id="ruleForm">
+            <input type="hidden" id="editingIndex" value="">
             <div class="form-row">
               <div class="form-group">
                 <label for="ruleName" data-i18n="ruleName">Rule Name</label>
@@ -676,9 +692,17 @@
               <div class="help-text" id="ruleHelp" data-i18n="selectMatchTypeFirst">Please select a match type first</div>  
             </div>
             
-            <button type="submit" class="btn btn-primary" data-i18n="addRule">
-              ➕ Add Rule
-            </button>
+            <div id="formButtons">
+              <button type="submit" class="btn btn-primary" id="addButton" data-i18n="addRule">
+                Add Rule
+              </button>
+              <button type="submit" class="btn btn-success" id="updateButton" style="display: none;" data-i18n="updateRule">
+                Update Rule
+              </button>
+              <button type="button" class="btn btn-secondary" id="cancelButton" style="display: none;" data-i18n="cancelEdit">
+                Cancel
+              </button>
+            </div>
           </form>
           
           <div class="examples">

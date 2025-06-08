@@ -239,6 +239,36 @@
     "message": "删除",
     "description": "Delete rule button text in Simplified Chinese"
   },
+  "editRule": {
+    "message": "编辑",
+    "description": "Edit rule button text in Simplified Chinese"
+  },
+  "editRuleTitle": {
+    "message": "编辑URL规则",
+    "description": "Edit rule section title in Simplified Chinese"
+  },
+  "updateRule": {
+    "message": "更新规则",
+    "description": "Update rule button text in Simplified Chinese"
+  },
+  "cancelEdit": {
+    "message": "取消",
+    "description": "Cancel edit button text in Simplified Chinese"
+  },
+  "ruleUpdatedSuccess": {
+    "message": "规则更新成功！",
+    "description": "Success message for rule update in Simplified Chinese"
+  },
+  "errorUpdatingRule": {
+    "message": "更新规则时发生错误：$ERROR$",
+    "description": "Error message for rule update failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "超出存储配额"
+      }
+    }
+  },
   
   "errorAllFieldsRequired": {
     "message": "请填写所有必填字段",

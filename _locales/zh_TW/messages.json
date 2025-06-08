@@ -239,6 +239,36 @@
     "message": "刪除",
     "description": "Delete rule button text in Traditional Chinese"
   },
+  "editRule": {
+    "message": "編輯",
+    "description": "Edit rule button text in Traditional Chinese"
+  },
+  "editRuleTitle": {
+    "message": "編輯URL規則",
+    "description": "Edit rule section title in Traditional Chinese"
+  },
+  "updateRule": {
+    "message": "更新規則",
+    "description": "Update rule button text in Traditional Chinese"
+  },
+  "cancelEdit": {
+    "message": "取消",
+    "description": "Cancel edit button text in Traditional Chinese"
+  },
+  "ruleUpdatedSuccess": {
+    "message": "規則更新成功！",
+    "description": "Success message for rule update in Traditional Chinese"
+  },
+  "errorUpdatingRule": {
+    "message": "更新規則時發生錯誤：$ERROR$",
+    "description": "Error message for rule update failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "超出儲存配額"
+      }
+    }
+  },
   
   "errorAllFieldsRequired": {
     "message": "請填寫所有必填欄位",

@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const importButton = document.getElementById('importButton');
   const importFile = document.getElementById('importFile');
   
+  // Edit form elements
+  const editingIndex = document.getElementById('editingIndex');
+  const addButton = document.getElementById('addButton');
+  const updateButton = document.getElementById('updateButton');
+  const cancelButton = document.getElementById('cancelButton');
+  
   // Tab switching functionality
   function switchTab(tabName) {
     // Remove active class from all buttons and contents
@@ -648,6 +654,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="rule-details">${rule.value}</div>
           </div>
           <div class="rule-actions">
+            <button class="btn btn-primary btn-sm edit-rule" data-index="${index}">
+              ${getMessage('editRule')}
+            </button>
             <button class="btn btn-danger btn-sm delete-rule" data-index="${index}">
               ${getMessage('deleteRule')}
             </button>
@@ -655,6 +664,14 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         rulesList.appendChild(ruleItem);
+      });
+      
+      // Add edit event listeners
+      document.querySelectorAll('.edit-rule').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          editRule(index);
+        });
       });
       
       // Add delete event listeners
@@ -667,13 +684,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Add new rule
+  // Add new rule or update existing rule
   ruleForm.addEventListener('submit', function(e) {
     e.preventDefault();
     
     const name = document.getElementById('ruleName').value.trim();
     const type = document.getElementById('ruleType').value;
     const value = document.getElementById('ruleValue').value.trim();
+    const isEditing = editingIndex.value !== '';
+    const editIndex = parseInt(editingIndex.value);
     
     if (!name || !type || !value) {
       showAlert(getMessage('errorAllFieldsRequired'), 'error');
@@ -694,35 +713,110 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.get(['urlRules'], function(result) {
       const rules = result.urlRules || [];
       
-      // Check for duplicate names
-      if (rules.some(rule => rule.name.toLowerCase() === name.toLowerCase())) {
+      // Check for duplicate names (excluding current rule when editing)
+      const duplicateRule = rules.find((rule, index) => 
+        rule.name.toLowerCase() === name.toLowerCase() && 
+        (!isEditing || index !== editIndex)
+      );
+      
+      if (duplicateRule) {
         showAlert(getMessage('errorDuplicateRuleName'), 'error');
         return;
       }
       
-      // Add new rule
-      const newRule = {
-        name: name,
-        type: type,
-        value: value,
-        created: Date.now()
-      };
-      
-      rules.push(newRule);
-      
-      // Save to storage
-      chrome.storage.sync.set({ urlRules: rules }, function() {
-        if (chrome.runtime.lastError) {
-          showAlert(getMessage('errorSavingRule', [chrome.runtime.lastError.message]), 'error');
-        } else {
-          showAlert(getMessage('ruleAddedSuccess'));
-          ruleForm.reset();
-          ruleHelp.textContent = getMessage('selectMatchTypeFirst');
-          loadRules();
+      if (isEditing) {
+        // Update existing rule
+        if (editIndex >= 0 && editIndex < rules.length) {
+          rules[editIndex] = {
+            ...rules[editIndex],
+            name: name,
+            type: type,
+            value: value,
+            updated: Date.now()
+          };
+          
+          // Save to storage
+          chrome.storage.sync.set({ urlRules: rules }, function() {
+            if (chrome.runtime.lastError) {
+              showAlert(getMessage('errorUpdatingRule', [chrome.runtime.lastError.message]), 'error');
+            } else {
+              showAlert(getMessage('ruleUpdatedSuccess'));
+              resetForm();
+              loadRules();
+            }
+          });
         }
-      });
+      } else {
+        // Add new rule
+        const newRule = {
+          name: name,
+          type: type,
+          value: value,
+          created: Date.now()
+        };
+        
+        rules.push(newRule);
+        
+        // Save to storage
+        chrome.storage.sync.set({ urlRules: rules }, function() {
+          if (chrome.runtime.lastError) {
+            showAlert(getMessage('errorSavingRule', [chrome.runtime.lastError.message]), 'error');
+          } else {
+            showAlert(getMessage('ruleAddedSuccess'));
+            resetForm();
+            loadRules();
+          }
+        });
+      }
     });
   });
+  
+  // Edit rule
+  function editRule(index) {
+    chrome.storage.sync.get(['urlRules'], function(result) {
+      const rules = result.urlRules || [];
+      
+      if (index >= 0 && index < rules.length) {
+        const rule = rules[index];
+        
+        // Fill form with rule data
+        document.getElementById('ruleName').value = rule.name;
+        document.getElementById('ruleType').value = rule.type;
+        document.getElementById('ruleValue').value = rule.value;
+        editingIndex.value = index.toString();
+        
+        // Update help text
+        if (rule.type && helpTexts[rule.type]) {
+          ruleHelp.textContent = helpTexts[rule.type]();
+        }
+        
+        // Switch to edit mode
+        const sectionTitle = document.querySelector('.section h2');
+        sectionTitle.textContent = getMessage('editRuleTitle');
+        addButton.style.display = 'none';
+        updateButton.style.display = 'inline-block';
+        cancelButton.style.display = 'inline-block';
+        
+        // Scroll to form
+        document.querySelector('.section').scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  }
+  
+  // Reset form to add mode
+  function resetForm() {
+    ruleForm.reset();
+    editingIndex.value = '';
+    ruleHelp.textContent = getMessage('selectMatchTypeFirst');
+    
+    // Switch back to add mode
+    const sectionTitle = document.querySelector('.section h2');
+    sectionTitle.setAttribute('data-i18n', 'addUrlRuleSection');
+    sectionTitle.textContent = getMessage('addUrlRuleSection');
+    addButton.style.display = 'inline-block';
+    updateButton.style.display = 'none';
+    cancelButton.style.display = 'none';
+  }
   
   // Delete rule
   function deleteRule(index) {
@@ -738,6 +832,10 @@ document.addEventListener('DOMContentLoaded', function() {
               showAlert(getMessage('errorDeletingRule', [chrome.runtime.lastError.message]), 'error');
             } else {
               showAlert(getMessage('ruleDeletedSuccess', [deletedRule.name]));
+              // Reset form if we're editing the deleted rule
+              if (editingIndex.value === index.toString()) {
+                resetForm();
+              }
               loadRules();
             }
           });
@@ -758,6 +856,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     }
+  });
+  
+  // Cancel edit button
+  cancelButton.addEventListener('click', function() {
+    resetForm();
   });
   
   // Initial load
