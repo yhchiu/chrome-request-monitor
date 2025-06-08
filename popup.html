@@ -27,6 +27,125 @@
       font-weight: 600;
     }
     
+    .monitor-controls {
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .monitor-section {
+      margin-bottom: 15px;
+    }
+    
+    .monitor-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .monitor-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    
+    .monitor-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #98c379;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.disabled {
+      background: #e06c75;
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.3);
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: #61dafb;
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+    
+    .rule-selector {
+      margin-top: 10px;
+    }
+    
+    .rule-selector select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    .rule-selector select option {
+      background: #2c3e50;
+      color: #fff;
+    }
+    
+    .rule-selector label {
+      display: block;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 4px;
+    }
+    
     .controls {
       padding: 15px 20px;
       display: flex;
@@ -184,6 +303,28 @@
     <h1 data-i18n="settingsHeader">🌐 Network Request Monitor</h1>
   </div>
   
+  <div class="monitor-controls">
+    <div class="monitor-section">
+      <div class="monitor-toggle">
+        <div class="monitor-status">
+          <div id="statusIndicator" class="status-indicator"></div>
+          <span id="monitorStatus" data-i18n="monitorEnabled">Monitor Enabled</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="monitorToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="rule-selector">
+        <label for="ruleSelector" data-i18n="selectRule">Select monitoring rule:</label>
+        <select id="ruleSelector">
+          <option value="all" data-i18n="allRules">All rules</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
   <div class="controls">
     <div style="display: flex; flex-direction: column; align-items: flex-start; flex: 1;">
       <span id="urlCount" style="font-size: 12px; margin-bottom: 4px;" data-i18n="loading">Loading...</span>

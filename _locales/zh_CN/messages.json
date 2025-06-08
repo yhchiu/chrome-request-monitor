@@ -91,6 +91,23 @@
     "description": "Confirmation message for clearing all URLs in Simplified Chinese"
   },
   
+  "monitorEnabled": {
+    "message": "监控已启用",
+    "description": "Monitor enabled status in Simplified Chinese"
+  },
+  "monitorDisabled": {
+    "message": "监控已停用",
+    "description": "Monitor disabled status in Simplified Chinese"
+  },
+  "selectRule": {
+    "message": "选择监控规则：",
+    "description": "Rule selector label in Simplified Chinese"
+  },
+  "allRules": {
+    "message": "所有规则",
+    "description": "All rules option in Simplified Chinese"
+  },
+  
   "settingsTitle": {
     "message": "网络连接监控器 - 设置",
     "description": "Settings page title in Simplified Chinese"

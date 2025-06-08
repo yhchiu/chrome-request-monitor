@@ -91,6 +91,23 @@
     "description": "Confirmation message for clearing all URLs in Traditional Chinese"
   },
   
+  "monitorEnabled": {
+    "message": "監控已啟用",
+    "description": "Monitor enabled status in Traditional Chinese"
+  },
+  "monitorDisabled": {
+    "message": "監控已停用",
+    "description": "Monitor disabled status in Traditional Chinese"
+  },
+  "selectRule": {
+    "message": "選擇監控規則：",
+    "description": "Rule selector label in Traditional Chinese"
+  },
+  "allRules": {
+    "message": "所有規則",
+    "description": "All rules option in Traditional Chinese"
+  },
+  
   "settingsTitle": {
     "message": "網路連線監控器 - 設定",
     "description": "Settings page title in Traditional Chinese"

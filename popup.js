@@ -10,6 +10,95 @@ document.addEventListener('DOMContentLoaded', function() {
   const optionsLink = document.getElementById('optionsLink');
   const tabFilterToggle = document.getElementById('tabFilterToggle');
   
+  // Monitor control elements
+  const monitorToggle = document.getElementById('monitorToggle');
+  const monitorStatus = document.getElementById('monitorStatus');
+  const statusIndicator = document.getElementById('statusIndicator');
+  const ruleSelector = document.getElementById('ruleSelector');
+  
+  let monitorEnabled = true;
+  let selectedRule = 'all';
+  let allRules = [];
+  
+  // Initialize popup
+  function init() {
+    loadMonitorSettings();
+    loadRules();
+    loadUrls();
+  }
+  
+  // Load monitor settings from storage
+  function loadMonitorSettings() {
+    chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
+      monitorEnabled = result.monitorEnabled !== false; // Default to true
+      selectedRule = result.selectedRule || 'all';
+      
+      updateMonitorUI();
+      updateRuleSelector();
+    });
+  }
+  
+  // Load rules from storage
+  function loadRules() {
+    chrome.storage.sync.get(['urlRules'], (result) => {
+      allRules = result.urlRules || [];
+      populateRuleSelector();
+    });
+  }
+  
+  // Update monitor UI based on current state
+  function updateMonitorUI() {
+    monitorToggle.checked = monitorEnabled;
+    
+    if (monitorEnabled) {
+      monitorStatus.textContent = getMessage('monitorEnabled');
+      statusIndicator.classList.remove('disabled');
+    } else {
+      monitorStatus.textContent = getMessage('monitorDisabled');
+      statusIndicator.classList.add('disabled');
+    }
+  }
+  
+  // Update rule selector based on selected rule
+  function updateRuleSelector() {
+    ruleSelector.value = selectedRule;
+  }
+  
+  // Populate rule selector dropdown
+  function populateRuleSelector() {
+    // Clear existing options except "all"
+    const allOption = ruleSelector.querySelector('option[value="all"]');
+    ruleSelector.innerHTML = '';
+    ruleSelector.appendChild(allOption);
+    
+    // Add rule options
+    allRules.forEach((rule, index) => {
+      const option = document.createElement('option');
+      option.value = index.toString();
+      option.textContent = rule.name || `${getMessage('rule')} ${index + 1}`;
+      ruleSelector.appendChild(option);
+    });
+    
+    updateRuleSelector();
+  }
+  
+  // Save monitor settings to storage
+  function saveMonitorSettings() {
+    chrome.storage.sync.set({
+      monitorEnabled: monitorEnabled,
+      selectedRule: selectedRule
+    });
+    
+    // Notify background script about settings change
+    chrome.runtime.sendMessage({
+      action: 'updateMonitorSettings',
+      settings: {
+        enabled: monitorEnabled,
+        selectedRule: selectedRule
+      }
+    });
+  }
+  
   // Load and display URLs
   function loadUrls() {
     loading.style.display = 'block';
@@ -21,7 +110,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     chrome.runtime.sendMessage({ 
       action: 'getFoundUrls',
-      currentTabOnly: currentTabOnly
+      currentTabOnly: currentTabOnly,
+      ruleFilter: selectedRule
     }, (response) => {
       loading.style.display = 'none';
       
@@ -93,6 +183,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Monitor toggle event
+  monitorToggle.addEventListener('change', function() {
+    monitorEnabled = this.checked;
+    updateMonitorUI();
+    saveMonitorSettings();
+  });
+  
+  // Rule selector change event
+  ruleSelector.addEventListener('change', function() {
+    selectedRule = this.value;
+    saveMonitorSettings();
+    loadUrls(); // Refresh URLs with new rule filter
+  });
+  
   // Refresh button
   refreshBtn.addEventListener('click', function() {
     loadUrls();
@@ -130,6 +234,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Initial load
-  loadUrls();
+  // Initialize popup
+  init();
 }); 

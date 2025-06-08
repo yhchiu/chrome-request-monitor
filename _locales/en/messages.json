@@ -89,6 +89,23 @@
     "message": "Are you sure you want to clear all found URLs?",
     "description": "Confirmation message for clearing all URLs"
   },
+  
+  "monitorEnabled": {
+    "message": "Monitor Enabled",
+    "description": "Monitor enabled status"
+  },
+  "monitorDisabled": {
+    "message": "Monitor Disabled",
+    "description": "Monitor disabled status"
+  },
+  "selectRule": {
+    "message": "Select monitoring rule:",
+    "description": "Rule selector label"
+  },
+  "allRules": {
+    "message": "All Rules",
+    "description": "All rules option"
+  },
   "settingsTitle": {
     "message": "Network Request Monitor - Settings",
     "description": "Settings page title"

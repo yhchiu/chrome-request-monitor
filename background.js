@@ -1,16 +1,31 @@
 // Background service worker for Chrome extension
 let foundUrls = [];
+let monitorSettings = {
+  enabled: true,
+  selectedRule: 'all'
+};
+
+// Initialize monitor settings from storage
+chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
+  monitorSettings.enabled = result.monitorEnabled !== false; // Default to true
+  monitorSettings.selectedRule = result.selectedRule || 'all';
+});
 
 // Listen for web requests
 chrome.webRequest.onBeforeRequest.addListener(
   async (details) => {
+    // Check if monitoring is enabled
+    if (!monitorSettings.enabled) {
+      return;
+    }
+    
     // Get user-defined rules from storage
     const result = await chrome.storage.sync.get(['urlRules']);
     const rules = result.urlRules || [];
     
     if (rules.length === 0) return;
     
-    // Check if URL matches any rule
+    // Check if URL matches any rule (always check all rules and filter later in display)
     const matchedRule = rules.find(rule => {
       if (rule.type === 'contains') {
         return details.url.includes(rule.value);
@@ -58,28 +73,20 @@ chrome.webRequest.onBeforeRequest.addListener(
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getFoundUrls') {
-    if (request.currentTabOnly) {
-      // Get current active tab
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const activeTab = tabs[0];
-        if (activeTab) {
-          // Filter URLs by current tab ID
-          const currentTabUrls = foundUrls.filter(urlData => urlData.tabId === activeTab.id);
-          sendResponse({ urls: currentTabUrls });
-        } else {
-          sendResponse({ urls: [] });
-        }
-      });
-      // Return true to indicate that the response is sent asynchronously
-      return true;
-    } else {
-    sendResponse({ urls: foundUrls });
-    }
+    // Handle the request asynchronously
+    handleGetFoundUrls(request, sendResponse);
+    return true; // Keep the message channel open for async response
   } else if (request.action === 'clearFoundUrls') {
     foundUrls = [];
     sendResponse({ success: true });
+  } else if (request.action === 'updateMonitorSettings') {
+    // Update monitor settings
+    monitorSettings = request.settings;
+    sendResponse({ success: true });
+  } else if (request.action === 'getMonitorSettings') {
+    sendResponse({ settings: monitorSettings });
   } else if (request.action === 'getOverlaySettings') {
-    // Get overlay settings from storage
+    // Handle overlay settings asynchronously
     chrome.storage.sync.get(['overlaySettings'], function(result) {
       const settings = result.overlaySettings || {
         maxOverlays: 5,
@@ -95,21 +102,77 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Listen for storage changes to update content scripts when overlay settings change
+// Async function to handle getFoundUrls request
+async function handleGetFoundUrls(request, sendResponse) {
+  try {
+    let filteredUrls = foundUrls;
+    
+    // Filter by rule if specified
+    if (request.ruleFilter && request.ruleFilter !== 'all') {
+      const ruleIndex = parseInt(request.ruleFilter);
+      // Get current rules from storage
+      const result = await chrome.storage.sync.get(['urlRules']);
+      const rules = result.urlRules || [];
+      
+      if (rules[ruleIndex]) {
+        const targetRule = rules[ruleIndex];
+        filteredUrls = foundUrls.filter(urlData => {
+          // Compare by type and value (the essential parts of a rule)
+          return urlData.rule.type === targetRule.type && 
+                 urlData.rule.value === targetRule.value;
+        });
+      } else {
+        filteredUrls = [];
+      }
+    }
+    
+    if (request.currentTabOnly) {
+      // Get current active tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs[0];
+      
+      if (activeTab) {
+        // Filter URLs by current tab ID
+        const currentTabUrls = filteredUrls.filter(urlData => urlData.tabId === activeTab.id);
+        sendResponse({ urls: currentTabUrls });
+      } else {
+        sendResponse({ urls: [] });
+      }
+    } else {
+      sendResponse({ urls: filteredUrls });
+    }
+  } catch (error) {
+    console.error('Error in handleGetFoundUrls:', error);
+    sendResponse({ urls: [] });
+  }
+}
+
+// Listen for storage changes to update monitor settings
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === 'sync' && changes.overlaySettings) {
-    const newSettings = changes.overlaySettings.newValue;
-    // Notify all tabs about the settings change
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
-          action: 'updateOverlaySettings',
-          settings: newSettings
-        }).catch(() => {
-          // Ignore errors for tabs that don't have the content script
+  if (areaName === 'sync') {
+    // Update monitor settings
+    if (changes.monitorEnabled) {
+      monitorSettings.enabled = changes.monitorEnabled.newValue;
+    }
+    if (changes.selectedRule) {
+      monitorSettings.selectedRule = changes.selectedRule.newValue;
+    }
+    
+    // Update overlay settings
+    if (changes.overlaySettings) {
+      const newSettings = changes.overlaySettings.newValue;
+      // Notify all tabs about the settings change
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach(tab => {
+          chrome.tabs.sendMessage(tab.id, {
+            action: 'updateOverlaySettings',
+            settings: newSettings
+          }).catch(() => {
+            // Ignore errors for tabs that don't have the content script
+          });
         });
       });
-    });
+    }
   }
 });
 
