@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const overlayTimeout = document.getElementById('overlayTimeout');
   const saveButton = document.getElementById('saveButton');
   
+  // Data management elements
+  const maxStorageLimit = document.getElementById('maxStorageLimit');
+  const saveDataButton = document.getElementById('saveDataButton');
+  
   // Tab switching functionality
   function switchTab(tabName) {
     // Remove active class from all buttons and contents
@@ -435,6 +439,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Load data management settings
+  function loadDataSettings() {
+    chrome.storage.sync.get(['dataSettings'], function(result) {
+      const settings = result.dataSettings || {
+        maxStorageLimit: 100
+      };
+      
+      maxStorageLimit.value = settings.maxStorageLimit;
+    });
+  }
+  
   // Save settings
   function saveSettingsFunction() {
     const maxValue = parseInt(maxOverlays.value);
@@ -459,6 +474,29 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.set({ overlaySettings: settings }, function() {
       if (chrome.runtime.lastError) {
         showAlert(getMessage('errorSavingSettings', [chrome.runtime.lastError.message]), 'error');
+      } else {
+        showAlert(getMessage('settingsSaved'));
+      }
+    });
+  }
+  
+  // Save data settings
+  function saveDataSettingsFunction() {
+    const limitValue = parseInt(maxStorageLimit.value);
+    
+    // Validate input
+    if (limitValue < 10 || limitValue > 1000) {
+      showAlert(getMessage('errorStorageLimitRange'), 'error');
+      return;
+    }
+    
+    const settings = {
+      maxStorageLimit: limitValue
+    };
+    
+    chrome.storage.sync.set({ dataSettings: settings }, function() {
+      if (chrome.runtime.lastError) {
+        showAlert(getMessage('errorSavingDataSettings', [chrome.runtime.lastError.message]), 'error');
       } else {
         showAlert(getMessage('settingsSaved'));
       }
@@ -618,7 +656,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initial load
   loadRules();
   loadOverlaySettings();
+  loadDataSettings();
   
-  // Settings event listener
+  // Settings event listeners
   saveButton.addEventListener('click', saveSettingsFunction);
+  saveDataButton.addEventListener('click', saveDataSettingsFunction);
 }); 

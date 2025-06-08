@@ -129,6 +129,10 @@
     "message": "悬浮窗口",
     "description": "Overlay settings section title in Simplified Chinese"
   },
+  "dataManagementSection": {
+    "message": "数据管理",
+    "description": "Data management section title in Simplified Chinese"
+  },
   
   "ruleName": {
     "message": "规则名称",
@@ -324,7 +328,21 @@
     "message": "设置已成功保存！",
     "description": "Success message for settings save in Simplified Chinese"
   },
-  
+  "errorStorageLimitRange": {
+    "message": "存储上限必须在10-1000之间",
+    "description": "Error message for invalid storage limit value in Simplified Chinese"
+  },
+  "errorSavingDataSettings": {
+    "message": "保存数据设置时发生错误：$ERROR$",
+    "description": "Error message for data settings saving failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "存储配额已满"
+      }
+    }
+  },
+
   "overlayTitle": {
     "message": "找到符合规则的URL:",
     "description": "Overlay title text in Simplified Chinese"
@@ -453,5 +471,45 @@
   "moreOptions": {
     "message": "更多",
     "description": "More options button text in Simplified Chinese"
+  },
+  "maxStorageTitle": {
+    "message": "匹配URL最大存储数量",
+    "description": "Data management title in Simplified Chinese"
+  },
+  "maxStorageLimit": {
+    "message": "最大存储上限",
+    "description": "Maximum storage limit field label in Simplified Chinese"
+  },
+  "maxStorageLimitHelpText": {
+    "message": "内存中存储的匹配URL最大数量 (10-1000)",
+    "description": "Help text for max storage limit field in Simplified Chinese"
+  },
+  "dataManagementExplanationTitle": {
+    "message": "💡 说明：",
+    "description": "Data management explanation section title in Simplified Chinese"
+  },
+  "dataStorageLimitLabel": {
+    "message": "存储上限：",
+    "description": "Data storage limit label in Simplified Chinese"
+  },
+  "dataStorageLimitExplanation": {
+    "message": "当达到上限时，较旧的URL会自动被移除以腾出空间给新的URL",
+    "description": "Data storage limit explanation in Simplified Chinese"
+  },
+  "dataPerformanceLabel": {
+    "message": "性能：",
+    "description": "Data performance label in Simplified Chinese"
+  },
+  "dataPerformanceExplanation": {
+    "message": "较高的上限可能会消耗更多内存，但能保留更多历史数据",
+    "description": "Data performance explanation in Simplified Chinese"
+  },
+  "dataDefaultValueLabel": {
+    "message": "默认值：",
+    "description": "Data default value label in Simplified Chinese"
+  },
+  "dataDefaultValueExplanation": {
+    "message": "100个URL在性能和数据保留之间提供良好的平衡",
+    "description": "Data default value explanation in Simplified Chinese"
   }
 } 

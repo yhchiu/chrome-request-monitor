@@ -632,6 +632,7 @@
         <div class="tabs" id="tabsContainer">
           <button class="tab-button active" data-tab="rules" data-i18n="urlRulesSection">URL Monitoring Rules</button>
           <button class="tab-button" data-tab="overlay" data-i18n="overlaySettingsSection">Overlay Window</button>
+          <button class="tab-button" data-tab="data" data-i18n="dataManagementSection">Data Management</button>
         </div>
         <div class="overflow-menu">
           <button class="overflow-button" id="overflowButton">
@@ -751,6 +752,34 @@
               <li><strong data-i18n="overlayMaxLabel">Maximum Overlays:</strong><span data-i18n="overlayMaxExplanation">When the maximum number is reached, the new overlay box will replace the oldest one</span></li>
               <li><strong data-i18n="overlayTimeoutLabel">Timeout:</strong><span data-i18n="overlayTimeoutExplanation">The overlay box will automatically disappear after the specified time</span></li>
               <li><strong data-i18n="overlayDefaultLabel">Default Values:</strong><span data-i18n="overlayDefaultExplanation">Maximum 5 overlays, automatically disappear after 30 seconds</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Data Management Tab Content -->
+      <div id="data-tab" class="tab-content">
+        <div class="section">
+          <h2 data-i18n="maxStorageTitle">Maximum Storage Limit of Matched URLs</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="maxStorageLimit" data-i18n="maxStorageLimit">Maximum Storage Limit</label>
+              <input type="number" id="maxStorageLimit" class="form-control" min="10" max="1000" value="100" required>
+              <div class="help-text" data-i18n="maxStorageLimitHelpText">Maximum number of matched URLs stored in memory (10-1000)</div>
+            </div>
+          </div>
+          
+          <button type="button" id="saveDataButton" class="btn btn-success" data-i18n="saveButton">
+            Save
+          </button>
+          
+          <div class="examples">
+            <h4 data-i18n="dataManagementExplanationTitle">💡 Explanation:</h4>
+            <ul>
+              <li><strong data-i18n="dataStorageLimitLabel">Storage Limit:</strong><span data-i18n="dataStorageLimitExplanation">When the limit is reached, older URLs will be automatically removed to make space for new ones</span></li>
+              <li><strong data-i18n="dataPerformanceLabel">Performance:</strong><span data-i18n="dataPerformanceExplanation">Higher limits may consume more memory but preserve more historical data</span></li>
+              <li><strong data-i18n="dataDefaultValueLabel">Default Value:</strong><span data-i18n="dataDefaultValueExplanation">100 URLs provides a good balance between performance and data retention</span></li>
             </ul>
           </div>
         </div>

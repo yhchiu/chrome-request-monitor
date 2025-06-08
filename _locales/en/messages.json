@@ -126,6 +126,10 @@
     "message": "Overlay Window",
     "description": "Overlay settings section title"
   },
+  "dataManagementSection": {
+    "message": "Data Management",
+    "description": "Data management section title"
+  },
   "ruleName": {
     "message": "Rule Name",
     "description": "Rule name field label"
@@ -314,6 +318,21 @@
     "message": "Settings saved successfully!",
     "description": "Success message for settings save"
   },
+  "errorStorageLimitRange": {
+    "message": "Storage limit must be between 10-1000",
+    "description": "Error message for invalid storage limit value"
+  },
+  "errorSavingDataSettings": {
+    "message": "Error saving data settings: $ERROR$",
+    "description": "Error message for data settings saving failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
+
   "overlayTitle": {
     "message": "Found matching URL:",
     "description": "Overlay title text"
@@ -442,5 +461,45 @@
   "moreOptions": {
     "message": "More",
     "description": "More options button text"
+  },
+  "maxStorageTitle": {
+    "message": "Maximum Storage Limit of Matched URLs",
+    "description": "Data management title"
+  },
+  "maxStorageLimit": {
+    "message": "Maximum Storage Limit",
+    "description": "Maximum storage limit field label"
+  },
+  "maxStorageLimitHelpText": {
+    "message": "Maximum number of matched URLs stored in memory (10-1000)",
+    "description": "Help text for max storage limit field"
+  },
+  "dataManagementExplanationTitle": {
+    "message": "💡 Explanation:",
+    "description": "Data management explanation section title"
+  },
+  "dataStorageLimitLabel": {
+    "message": "Storage Limit:",
+    "description": "Data storage limit label"
+  },
+  "dataStorageLimitExplanation": {
+    "message": "When the limit is reached, older URLs will be automatically removed to make space for new ones",
+    "description": "Data storage limit explanation"
+  },
+  "dataPerformanceLabel": {
+    "message": "Performance:",
+    "description": "Data performance label"
+  },
+  "dataPerformanceExplanation": {
+    "message": "Higher limits may consume more memory but preserve more historical data",
+    "description": "Data performance explanation"
+  },
+  "dataDefaultValueLabel": {
+    "message": "Default Value:",
+    "description": "Data default value label"
+  },
+  "dataDefaultValueExplanation": {
+    "message": "100 URLs provides a good balance between performance and data retention",
+    "description": "Data default value explanation"
   }
 } 

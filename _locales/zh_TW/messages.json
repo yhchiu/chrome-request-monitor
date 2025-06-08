@@ -129,6 +129,10 @@
     "message": "懸浮視窗",
     "description": "Overlay settings section title in Traditional Chinese"
   },
+  "dataManagementSection": {
+    "message": "資料管理",
+    "description": "Data management section title in Traditional Chinese"
+  },
   
   "ruleName": {
     "message": "規則名稱",
@@ -324,7 +328,21 @@
     "message": "設定已成功儲存！",
     "description": "Success message for settings save in Traditional Chinese"
   },
-  
+  "errorStorageLimitRange": {
+    "message": "儲存上限必須在10-1000之間",
+    "description": "Error message for invalid storage limit value in Traditional Chinese"
+  },
+  "errorSavingDataSettings": {
+    "message": "儲存資料設定時發生錯誤：$ERROR$",
+    "description": "Error message for data settings saving failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "儲存配額已滿"
+      }
+    }
+  },
+
   "overlayTitle": {
     "message": "找到符合規則的URL:",
     "description": "Overlay title text in Traditional Chinese"
@@ -453,5 +471,45 @@
   "moreOptions": {
     "message": "更多",
     "description": "More options button text in Traditional Chinese"
+  },
+  "maxStorageTitle": {
+    "message": "匹配URL最大儲存數量",
+    "description": "Data management title in Traditional Chinese"
+  },
+  "maxStorageLimit": {
+    "message": "最大儲存上限",
+    "description": "Maximum storage limit field label in Traditional Chinese"
+  },
+  "maxStorageLimitHelpText": {
+    "message": "記憶體中儲存的匹配URL最大數量 (10-1000)",
+    "description": "Help text for max storage limit field in Traditional Chinese"
+  },
+  "dataManagementExplanationTitle": {
+    "message": "💡 說明：",
+    "description": "Data management explanation section title in Traditional Chinese"
+  },
+  "dataStorageLimitLabel": {
+    "message": "儲存上限：",
+    "description": "Data storage limit label in Traditional Chinese"
+  },
+  "dataStorageLimitExplanation": {
+    "message": "當達到上限時，較舊的URL會自動被移除以騰出空間給新的URL",
+    "description": "Data storage limit explanation in Traditional Chinese"
+  },
+  "dataPerformanceLabel": {
+    "message": "效能：",
+    "description": "Data performance label in Traditional Chinese"
+  },
+  "dataPerformanceExplanation": {
+    "message": "較高的上限可能會消耗更多記憶體，但能保留更多歷史資料",
+    "description": "Data performance explanation in Traditional Chinese"
+  },
+  "dataDefaultValueLabel": {
+    "message": "預設值：",
+    "description": "Data default value label in Traditional Chinese"
+  },
+  "dataDefaultValueExplanation": {
+    "message": "100個URL在效能和資料保留之間提供良好的平衡",
+    "description": "Data default value explanation in Traditional Chinese"
   }
 } 

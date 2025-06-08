@@ -5,6 +5,11 @@ let monitorSettings = {
   selectedRule: 'all'
 };
 
+// Data settings
+let dataSettings = {
+  maxStorageLimit: 100
+};
+
 // Initialize from persistent storage when Service Worker starts
 async function initializeFoundUrls() {
   try {
@@ -22,8 +27,8 @@ async function addFoundUrl(urlData) {
   foundUrlsCache.push(urlData);
   
   // Limit cache size in memory
-  if (foundUrlsCache.length > 100) {
-    foundUrlsCache = foundUrlsCache.slice(-100);
+  if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
+    foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
   }
   
   // Asynchronously backup to persistent storage
@@ -55,6 +60,14 @@ initializeFoundUrls();
 chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
   monitorSettings.enabled = result.monitorEnabled !== false; // Default to true
   monitorSettings.selectedRule = result.selectedRule || 'all';
+});
+
+// Initialize data settings from storage
+chrome.storage.sync.get(['dataSettings'], (result) => {
+  const settings = result.dataSettings || {
+    maxStorageLimit: 100
+  };
+  dataSettings = settings;
 });
 
 // Listen for web requests
@@ -210,6 +223,23 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       monitorSettings.selectedRule = changes.selectedRule.newValue;
     }
     
+    // Update data settings
+    if (changes.dataSettings) {
+      dataSettings = changes.dataSettings.newValue;
+      
+      // Immediately apply new storage limit if current cache exceeds it
+      if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
+        foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
+        
+        // Sync the trimmed cache back to persistent storage
+        chrome.storage.session.set({ 
+          foundUrls: foundUrlsCache 
+        }).catch((error) => {
+          console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to sync updated cache to storage:`, error);
+        });
+      }
+    }
+    
     // Update overlay settings
     if (changes.overlaySettings) {
       const newSettings = changes.overlaySettings.newValue;
@@ -230,8 +260,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // Enhanced cleanup with hybrid storage management
 setInterval(async () => {
-  if (foundUrlsCache.length > 100) {
-    foundUrlsCache = foundUrlsCache.slice(-100);
+  if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
+    foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
     
     // Sync the cleaned cache back to persistent storage
     try {
