@@ -595,5 +595,121 @@
   "errorReadingFile": {
     "message": "Error reading file",
     "description": "Error message for file reading failure"
+  },
+  "aboutSection": {
+    "message": "About",
+    "description": "About tab title"
+  },
+  "aboutExtensionTitle": {
+    "message": "About Extension",
+    "description": "About extension section title"
+  },
+  "extensionName": {
+    "message": "Network Request Monitor",
+    "description": "Extension name"
+  },
+  "extensionVersion": {
+    "message": "Version 1.0.0",
+    "description": "Extension version"
+  },
+  "extensionDescription": {
+    "message": "Monitor and capture network requests matching specified URL patterns",
+    "description": "Extension description"
+  },
+  "featuresTitle": {
+    "message": "✨ Key Features",
+    "description": "Features section title"
+  },
+  "feature1": {
+    "message": "Real-time monitoring of network requests",
+    "description": "First feature description"
+  },
+  "feature2": {
+    "message": "Flexible URL pattern matching (contains, starts with, ends with, regex)",
+    "description": "Second feature description"
+  },
+  "feature3": {
+    "message": "Customizable overlay notifications",
+    "description": "Third feature description"
+  },
+  "feature4": {
+    "message": "Data export and import functionality",
+    "description": "Fourth feature description"
+  },
+  "feature5": {
+    "message": "Adjustable storage limits and timeout settings",
+    "description": "Fifth feature description"
+  },
+  "supportTitle": {
+    "message": "🛠️ Support & Feedback",
+    "description": "Support section title"
+  },
+  "supportGithub": {
+    "message": "GitHub:",
+    "description": "GitHub support link label"
+  },
+  "supportEmail": {
+    "message": "Email:",
+    "description": "Email support link label"
+  },
+  "supportReportBug": {
+    "message": "Report bugs or request features",
+    "description": "Bug report instruction"
+  },
+  "supportRating": {
+    "message": "Rate us on Chrome Web Store",
+    "description": "Rating instruction"
+  },
+  "privacyTitle": {
+    "message": "🔐 Privacy & Security",
+    "description": "Privacy section title"
+  },
+  "privacy1": {
+    "message": "All data is stored locally on your device",
+    "description": "First privacy point"
+  },
+  "privacy2": {
+    "message": "No personal information is collected or transmitted",
+    "description": "Second privacy point"
+  },
+  "privacy3": {
+    "message": "Network requests are only monitored based on your configured rules",
+    "description": "Third privacy point"
+  },
+  "privacy4": {
+    "message": "You have full control over what data is captured and stored",
+    "description": "Fourth privacy point"
+  },
+  "licenseTitle": {
+    "message": "📄 License & Credits",
+    "description": "License section title"
+  },
+  "licenseText": {
+    "message": "This extension is released under the GNU General Public License v3 (GPL v3). You are free to use, modify, and distribute this software under the terms of the GPL v3.",
+    "description": "License text"
+  },
+  "copyrightText": {
+    "message": "Copyright (C) Yu-Hsiung Chiu",
+    "description": "Copyright text"
+  },
+  "technicalInfoTitle": {
+    "message": "⚙️ Technical Information",
+    "description": "Technical information section title"
+  },
+  "manifestVersion": {
+    "message": "Manifest Version:",
+    "description": "Manifest version label"
+  },
+  "chromeVersion": {
+    "message": "Minimum Chrome Version:",
+    "description": "Minimum Chrome version label"
+  },
+  "permissions": {
+    "message": "Permissions:",
+    "description": "Permissions label"
+  },
+  "buildDate": {
+    "message": "Build Date:",
+    "description": "Build date label"
   }
 } 

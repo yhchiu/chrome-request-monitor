@@ -605,5 +605,121 @@
   "errorReadingFile": {
     "message": "读取文件时发生错误",
     "description": "Error message for file reading failure in Simplified Chinese"
+  },
+  "aboutSection": {
+    "message": "关于",
+    "description": "About tab title in Simplified Chinese"
+  },
+  "aboutExtensionTitle": {
+    "message": "关于扩展",
+    "description": "About extension section title in Simplified Chinese"
+  },
+  "extensionName": {
+    "message": "网络请求监控器",
+    "description": "Extension name in Simplified Chinese"
+  },
+  "extensionVersion": {
+    "message": "版本 1.0.0",
+    "description": "Extension version in Simplified Chinese"
+  },
+  "extensionDescription": {
+    "message": "监控并捕获符合指定URL模式的网络请求",
+    "description": "Extension description in Simplified Chinese"
+  },
+  "featuresTitle": {
+    "message": "✨ 主要功能",
+    "description": "Features section title in Simplified Chinese"
+  },
+  "feature1": {
+    "message": "实时监控网络请求",
+    "description": "First feature description in Simplified Chinese"
+  },
+  "feature2": {
+    "message": "灵活的URL模式匹配（包含、开头、结尾、正则表达式）",
+    "description": "Second feature description in Simplified Chinese"
+  },
+  "feature3": {
+    "message": "可自定义的悬浮通知",
+    "description": "Third feature description in Simplified Chinese"
+  },
+  "feature4": {
+    "message": "数据导出和导入功能",
+    "description": "Fourth feature description in Simplified Chinese"
+  },
+  "feature5": {
+    "message": "可调整的存储限制和超时设置",
+    "description": "Fifth feature description in Simplified Chinese"
+  },
+  "supportTitle": {
+    "message": "🛠️ 支持与反馈",
+    "description": "Support section title in Simplified Chinese"
+  },
+  "supportGithub": {
+    "message": "GitHub：",
+    "description": "GitHub support link label in Simplified Chinese"
+  },
+  "supportEmail": {
+    "message": "电子邮件：",
+    "description": "Email support link label in Simplified Chinese"
+  },
+  "supportReportBug": {
+    "message": "报告错误或请求功能",
+    "description": "Bug report instruction in Simplified Chinese"
+  },
+  "supportRating": {
+    "message": "在 Chrome 网上应用店为我们评分",
+    "description": "Rating instruction in Simplified Chinese"
+  },
+  "privacyTitle": {
+    "message": "🔐 隐私与安全",
+    "description": "Privacy section title in Simplified Chinese"
+  },
+  "privacy1": {
+    "message": "所有数据都存储在您的本地设备上",
+    "description": "First privacy point in Simplified Chinese"
+  },
+  "privacy2": {
+    "message": "不会收集或传输任何个人信息",
+    "description": "Second privacy point in Simplified Chinese"
+  },
+  "privacy3": {
+    "message": "仅根据您配置的规则监控网络请求",
+    "description": "Third privacy point in Simplified Chinese"
+  },
+  "privacy4": {
+    "message": "您完全控制要捕获和存储的数据",
+    "description": "Fourth privacy point in Simplified Chinese"
+  },
+  "licenseTitle": {
+    "message": "📄 许可证与致谢",
+    "description": "License section title in Simplified Chinese"
+  },
+  "licenseText": {
+    "message": "此扩展根据 GNU 通用公共许可证第三版 (GPL v3) 发布。您可以在 GPL v3 条款下自由使用、修改和分发此软件。",
+    "description": "License text in Simplified Chinese"
+  },
+  "copyrightText": {
+    "message": "Copyright (C) Yu-Hsiung Chiu",
+    "description": "Copyright text in Simplified Chinese"
+  },
+  "technicalInfoTitle": {
+    "message": "⚙️ 技术信息",
+    "description": "Technical information section title in Simplified Chinese"
+  },
+  "manifestVersion": {
+    "message": "清单版本：",
+    "description": "Manifest version label in Simplified Chinese"
+  },
+  "chromeVersion": {
+    "message": "最低 Chrome 版本：",
+    "description": "Minimum Chrome version label in Simplified Chinese"
+  },
+  "permissions": {
+    "message": "权限：",
+    "description": "Permissions label in Simplified Chinese"
+  },
+  "buildDate": {
+    "message": "构建日期：",
+    "description": "Build date label in Simplified Chinese"
   }
 } 

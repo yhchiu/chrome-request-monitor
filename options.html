@@ -648,6 +648,7 @@
           <button class="tab-button active" data-tab="rules" data-i18n="urlRulesSection">URL Monitoring Rules</button>
           <button class="tab-button" data-tab="overlay" data-i18n="overlaySettingsSection">Overlay Window</button>
           <button class="tab-button" data-tab="data" data-i18n="dataManagementSection">Data Management</button>
+          <button class="tab-button" data-tab="about" data-i18n="aboutSection">About</button>
         </div>
         <div class="overflow-menu">
           <button class="overflow-button" id="overflowButton">
@@ -826,6 +827,77 @@
               </button>
               <div class="help-text" data-i18n="importHelpText">Upload a settings file to restore configuration</div>
             </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- About Tab Content -->
+      <div id="about-tab" class="tab-content">
+        <div class="section">
+          <h2 data-i18n="aboutExtensionTitle">About Extension</h2>
+          
+          <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+            <div style="font-size: 48px;">🌐</div>
+            <div>
+              <h3 style="margin: 0; color: #667eea;" data-i18n="extensionName">Network Request Monitor</h3>
+              <p style="margin: 5px 0; color: #666;" data-i18n="extensionVersion">Version 1.0.0</p>
+              <p style="margin: 0; font-size: 14px; color: #888;" data-i18n="extensionDescription">Monitor and capture network requests matching specified URL patterns</p>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <h4 data-i18n="featuresTitle">✨ Key Features</h4>
+              <ul style="line-height: 1.8; color: #555;">
+                <li data-i18n="feature1">Real-time monitoring of network requests</li>
+                <li data-i18n="feature2">Flexible URL pattern matching (contains, starts with, ends with, regex)</li>
+                <li data-i18n="feature3">Customizable overlay notifications</li>
+                <li data-i18n="feature4">Data export and import functionality</li>
+                <li data-i18n="feature5">Adjustable storage limits and timeout settings</li>
+              </ul>
+            </div>
+            
+            <div class="form-group">
+              <h4 data-i18n="supportTitle">🛠️ Support & Feedback</h4>
+              <ul style="line-height: 1.8; color: #555;">
+                <li><span data-i18n="supportGithub">GitHub:</span> <a href="https://github.com/yhchiu/chrome-request-monitor" style="color: #667eea; text-decoration: none;">yhchiu/chrome-request-monitor</a></li>
+                <!-- <li><span data-i18n="supportEmail">Email:</span> <a href="mailto:support@example.com" style="color: #667eea; text-decoration: none;">support@example.com</a></li> -->
+                <li><a href="https://github.com/yhchiu/chrome-request-monitor/issues" style="color: #667eea; text-decoration: none;"><span data-i18n="supportReportBug">Report bugs or request features:</span></a></li>
+                <!-- <li><a href="https://chromewebstore.google.com/detail/network-request-monitor/jgjgjgjgjgjgjgjgjgjgjgjgjgjgjgjg" style="color: #667eea; text-decoration: none;"><span data-i18n="supportRating">Rate us on Chrome Web Store</span></a></li> -->
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h2 data-i18n="privacyTitle">🔐 Privacy & Security</h2>
+          <ul style="line-height: 1.8; color: #555;">
+            <li data-i18n="privacy1">All data is stored locally on your device</li>
+            <li data-i18n="privacy2">No personal information is collected or transmitted</li>
+            <li data-i18n="privacy3">Network requests are only monitored based on your configured rules</li>
+            <li data-i18n="privacy4">You have full control over what data is captured and stored</li>
+          </ul>
+        </div>
+        
+        <div class="section">
+          <h2 data-i18n="licenseTitle">📄 License & Credits</h2>
+          <div style="background: #f7fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
+            <p style="margin: 0 0 15px 0; color: #555;" data-i18n="licenseText">
+              This extension is released under the GNU General Public License v3 (GPL v3). 
+              You are free to use, modify, and distribute this software under the terms of the GPL v3.
+            </p>
+            <p style="margin: 0; color: #666; font-size: 14px;" data-i18n="copyrightText">
+              Copyright (C) Yu-Hsiung Chiu
+            </p>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h2 data-i18n="technicalInfoTitle">⚙️ Technical Information</h2>
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 13px; color: #666;">
+            <div style="margin-bottom: 8px;"><strong data-i18n="manifestVersion">Manifest Version:</strong> 3</div>
+            <div style="margin-bottom: 8px;"><strong data-i18n="chromeVersion">Minimum Chrome Version:</strong> 88</div>
+            <div style="margin-bottom: 8px;"><strong data-i18n="permissions">Permissions:</strong> activeTab, storage, webRequest</div>
           </div>
         </div>
       </div>

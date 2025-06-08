@@ -605,5 +605,121 @@
   "errorReadingFile": {
     "message": "讀取檔案時發生錯誤",
     "description": "Error message for file reading failure in Traditional Chinese"
+  },
+  "aboutSection": {
+    "message": "關於",
+    "description": "About tab title in Traditional Chinese"
+  },
+  "aboutExtensionTitle": {
+    "message": "關於擴展",
+    "description": "About extension section title in Traditional Chinese"
+  },
+  "extensionName": {
+    "message": "網路請求監控器",
+    "description": "Extension name in Traditional Chinese"
+  },
+  "extensionVersion": {
+    "message": "版本 1.0.0",
+    "description": "Extension version in Traditional Chinese"
+  },
+  "extensionDescription": {
+    "message": "監控並捕獲符合指定URL模式的網路請求",
+    "description": "Extension description in Traditional Chinese"
+  },
+  "featuresTitle": {
+    "message": "✨ 主要功能",
+    "description": "Features section title in Traditional Chinese"
+  },
+  "feature1": {
+    "message": "即時監控網路請求",
+    "description": "First feature description in Traditional Chinese"
+  },
+  "feature2": {
+    "message": "彈性的URL模式匹配（包含、開頭、結尾、正則表達式）",
+    "description": "Second feature description in Traditional Chinese"
+  },
+  "feature3": {
+    "message": "可自訂的懸浮通知",
+    "description": "Third feature description in Traditional Chinese"
+  },
+  "feature4": {
+    "message": "資料匯出和匯入功能",
+    "description": "Fourth feature description in Traditional Chinese"
+  },
+  "feature5": {
+    "message": "可調整的儲存限制和超時設定",
+    "description": "Fifth feature description in Traditional Chinese"
+  },
+  "supportTitle": {
+    "message": "🛠️ 支援與回饋",
+    "description": "Support section title in Traditional Chinese"
+  },
+  "supportGithub": {
+    "message": "GitHub：",
+    "description": "GitHub support link label in Traditional Chinese"
+  },
+  "supportEmail": {
+    "message": "電子郵件：",
+    "description": "Email support link label in Traditional Chinese"
+  },
+  "supportReportBug": {
+    "message": "回報錯誤或請求功能",
+    "description": "Bug report instruction in Traditional Chinese"
+  },
+  "supportRating": {
+    "message": "在 Chrome 網上應用店為我們評分",
+    "description": "Rating instruction in Traditional Chinese"
+  },
+  "privacyTitle": {
+    "message": "🔐 隱私與安全",
+    "description": "Privacy section title in Traditional Chinese"
+  },
+  "privacy1": {
+    "message": "所有資料都儲存在您的本地裝置上",
+    "description": "First privacy point in Traditional Chinese"
+  },
+  "privacy2": {
+    "message": "不會收集或傳輸任何個人資訊",
+    "description": "Second privacy point in Traditional Chinese"
+  },
+  "privacy3": {
+    "message": "僅根據您配置的規則監控網路請求",
+    "description": "Third privacy point in Traditional Chinese"
+  },
+  "privacy4": {
+    "message": "您完全控制要捕獲和儲存的資料",
+    "description": "Fourth privacy point in Traditional Chinese"
+  },
+  "licenseTitle": {
+    "message": "📄 許可證與致謝",
+    "description": "License section title in Traditional Chinese"
+  },
+  "licenseText": {
+    "message": "此擴展根據 GNU 通用公共許可證第三版 (GPL v3) 發佈。您可以在 GPL v3 條款下自由使用、修改和分發此軟體。",
+    "description": "License text in Traditional Chinese"
+  },
+  "copyrightText": {
+    "message": "Copyright (C) Yu-Hsiung Chiu",
+    "description": "Copyright text in Traditional Chinese"
+  },
+  "technicalInfoTitle": {
+    "message": "⚙️ 技術資訊",
+    "description": "Technical information section title in Traditional Chinese"
+  },
+  "manifestVersion": {
+    "message": "清單版本：",
+    "description": "Manifest version label in Traditional Chinese"
+  },
+  "chromeVersion": {
+    "message": "最低 Chrome 版本：",
+    "description": "Minimum Chrome version label in Traditional Chinese"
+  },
+  "permissions": {
+    "message": "權限：",
+    "description": "Permissions label in Traditional Chinese"
+  },
+  "buildDate": {
+    "message": "建置日期：",
+    "description": "Build date label in Traditional Chinese"
   }
 } 
