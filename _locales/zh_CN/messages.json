@@ -511,5 +511,61 @@
   "dataDefaultValueExplanation": {
     "message": "100个URL在性能和数据保留之间提供良好的平衡",
     "description": "Data default value explanation in Simplified Chinese"
+  },
+  "settingsBackupTitle": {
+    "message": "设置备份与恢复",
+    "description": "Settings backup and restore title in Simplified Chinese"
+  },
+  "exportSettings": {
+    "message": "导出设置",
+    "description": "Export settings button text in Simplified Chinese"
+  },
+  "importSettings": {
+    "message": "导入设置",
+    "description": "Import settings button text in Simplified Chinese"
+  },
+  "exportHelpText": {
+    "message": "将所有设置下载为JSON文件进行备份",
+    "description": "Export help text in Simplified Chinese"
+  },
+  "importHelpText": {
+    "message": "上传设置文件以恢复配置",
+    "description": "Import help text in Simplified Chinese"
+  },
+  "exportSuccess": {
+    "message": "设置已成功导出！",
+    "description": "Export success message in Simplified Chinese"
+  },
+  "importSuccess": {
+    "message": "设置已成功导入！页面即将重新加载。",
+    "description": "Import success message in Simplified Chinese"
+  },
+  "errorNoFileSelected": {
+    "message": "请选择要导入的文件",
+    "description": "Error message for no file selected in Simplified Chinese"
+  },
+  "errorInvalidSettingsFile": {
+    "message": "无效的设置文件格式：$ERROR$",
+    "description": "Error message for invalid settings file in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "JSON格式错误"
+      }
+    }
+  },
+  "errorImportingSettings": {
+    "message": "导入设置时发生错误：$ERROR$",
+    "description": "Error message for importing settings failure in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "存储配额已满"
+      }
+    }
+  },
+  "errorReadingFile": {
+    "message": "读取文件时发生错误",
+    "description": "Error message for file reading failure in Simplified Chinese"
   }
 } 

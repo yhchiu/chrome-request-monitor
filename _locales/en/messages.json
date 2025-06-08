@@ -501,5 +501,61 @@
   "dataDefaultValueExplanation": {
     "message": "100 URLs provides a good balance between performance and data retention",
     "description": "Data default value explanation"
+  },
+  "settingsBackupTitle": {
+    "message": "Settings Backup & Restore",
+    "description": "Settings backup and restore title"
+  },
+  "exportSettings": {
+    "message": "Export Settings",
+    "description": "Export settings button text"
+  },
+  "importSettings": {
+    "message": "Import Settings",
+    "description": "Import settings button text"
+  },
+  "exportHelpText": {
+    "message": "Download all settings as a JSON file for backup",
+    "description": "Export help text"
+  },
+  "importHelpText": {
+    "message": "Upload a settings file to restore configuration",
+    "description": "Import help text"
+  },
+  "exportSuccess": {
+    "message": "Settings exported successfully!",
+    "description": "Export success message"
+  },
+  "importSuccess": {
+    "message": "Settings imported successfully! Page will reload shortly.",
+    "description": "Import success message"
+  },
+  "errorNoFileSelected": {
+    "message": "Please select a file to import",
+    "description": "Error message for no file selected"
+  },
+  "errorInvalidSettingsFile": {
+    "message": "Invalid settings file format: $ERROR$",
+    "description": "Error message for invalid settings file",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "JSON syntax error"
+      }
+    }
+  },
+  "errorImportingSettings": {
+    "message": "Error importing settings: $ERROR$",
+    "description": "Error message for importing settings failure",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Storage quota exceeded"
+      }
+    }
+  },
+  "errorReadingFile": {
+    "message": "Error reading file",
+    "description": "Error message for file reading failure"
   }
 } 

@@ -29,6 +29,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxStorageLimit = document.getElementById('maxStorageLimit');
   const saveDataButton = document.getElementById('saveDataButton');
   
+  // Import/Export elements
+  const exportButton = document.getElementById('exportButton');
+  const importButton = document.getElementById('importButton');
+  const importFile = document.getElementById('importFile');
+  
   // Tab switching functionality
   function switchTab(tabName) {
     // Remove active class from all buttons and contents
@@ -503,6 +508,108 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Export settings function
+  function exportSettings() {
+    chrome.storage.sync.get(['urlRules', 'overlaySettings', 'dataSettings'], function(result) {
+      const settings = {
+        exportDate: new Date().toISOString(),
+        extensionVersion: chrome.runtime.getManifest().version,
+        urlRules: result.urlRules || [],
+        overlaySettings: result.overlaySettings || {
+          maxOverlays: 5,
+          timeoutSeconds: 30
+        },
+        dataSettings: result.dataSettings || {
+          maxStorageLimit: 100
+        }
+      };
+      
+      const dataStr = JSON.stringify(settings, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `network-monitor-settings-${new Date().toISOString().split('T')[0]}.json`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      showAlert(getMessage('exportSuccess'));
+    });
+  }
+  
+  // Import settings function
+  function importSettings(file) {
+    if (!file) {
+      showAlert(getMessage('errorNoFileSelected'), 'error');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const settings = JSON.parse(e.target.result);
+        
+        // Validate the imported settings structure
+        if (!settings || typeof settings !== 'object') {
+          throw new Error('Invalid settings file format');
+        }
+        
+        // Prepare settings to save
+        const settingsToSave = {};
+        
+        // Validate and prepare URL rules
+        if (settings.urlRules && Array.isArray(settings.urlRules)) {
+          settingsToSave.urlRules = settings.urlRules.filter(rule => 
+            rule && rule.name && rule.type && rule.value
+          );
+        }
+        
+        // Validate and prepare overlay settings
+        if (settings.overlaySettings && typeof settings.overlaySettings === 'object') {
+          const overlay = settings.overlaySettings;
+          if (overlay.maxOverlays >= 1 && overlay.maxOverlays <= 20 &&
+              overlay.timeoutSeconds >= 5 && overlay.timeoutSeconds <= 300) {
+            settingsToSave.overlaySettings = overlay;
+          }
+        }
+        
+        // Validate and prepare data settings
+        if (settings.dataSettings && typeof settings.dataSettings === 'object') {
+          const data = settings.dataSettings;
+          if (data.maxStorageLimit >= 10 && data.maxStorageLimit <= 1000) {
+            settingsToSave.dataSettings = data;
+          }
+        }
+        
+        // Save settings
+        chrome.storage.sync.set(settingsToSave, function() {
+          if (chrome.runtime.lastError) {
+            showAlert(getMessage('errorImportingSettings', [chrome.runtime.lastError.message]), 'error');
+          } else {
+            showAlert(getMessage('importSuccess'));
+            // Reload the page to reflect imported settings
+            setTimeout(() => {
+              location.reload();
+            }, 1500);
+          }
+        });
+        
+      } catch (error) {
+        showAlert(getMessage('errorInvalidSettingsFile', [error.message]), 'error');
+      }
+    };
+    
+    reader.onerror = function() {
+      showAlert(getMessage('errorReadingFile'), 'error');
+    };
+    
+    reader.readAsText(file);
+  }
+  
   // Display rules in the list
   function displayRules(rules) {
     if (rules.length === 0) {
@@ -661,4 +768,18 @@ document.addEventListener('DOMContentLoaded', function() {
   // Settings event listeners
   saveButton.addEventListener('click', saveSettingsFunction);
   saveDataButton.addEventListener('click', saveDataSettingsFunction);
+  
+  // Import/Export event listeners
+  exportButton.addEventListener('click', exportSettings);
+  importButton.addEventListener('click', function() {
+    importFile.click();
+  });
+  importFile.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      importSettings(file);
+      // Reset the file input
+      e.target.value = '';
+    }
+  });
 }); 

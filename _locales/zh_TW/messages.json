@@ -511,5 +511,61 @@
   "dataDefaultValueExplanation": {
     "message": "100個URL在效能和資料保留之間提供良好的平衡",
     "description": "Data default value explanation in Traditional Chinese"
+  },
+  "settingsBackupTitle": {
+    "message": "設定備份與還原",
+    "description": "Settings backup and restore title in Traditional Chinese"
+  },
+  "exportSettings": {
+    "message": "匯出設定",
+    "description": "Export settings button text in Traditional Chinese"
+  },
+  "importSettings": {
+    "message": "匯入設定",
+    "description": "Import settings button text in Traditional Chinese"
+  },
+  "exportHelpText": {
+    "message": "將所有設定下載為JSON檔案進行備份",
+    "description": "Export help text in Traditional Chinese"
+  },
+  "importHelpText": {
+    "message": "上傳設定檔案以還原配置",
+    "description": "Import help text in Traditional Chinese"
+  },
+  "exportSuccess": {
+    "message": "設定已成功匯出！",
+    "description": "Export success message in Traditional Chinese"
+  },
+  "importSuccess": {
+    "message": "設定已成功匯入！頁面即將重新載入。",
+    "description": "Import success message in Traditional Chinese"
+  },
+  "errorNoFileSelected": {
+    "message": "請選擇要匯入的檔案",
+    "description": "Error message for no file selected in Traditional Chinese"
+  },
+  "errorInvalidSettingsFile": {
+    "message": "無效的設定檔案格式：$ERROR$",
+    "description": "Error message for invalid settings file in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "JSON格式錯誤"
+      }
+    }
+  },
+  "errorImportingSettings": {
+    "message": "匯入設定時發生錯誤：$ERROR$",
+    "description": "Error message for importing settings failure in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "儲存配額已滿"
+      }
+    }
+  },
+  "errorReadingFile": {
+    "message": "讀取檔案時發生錯誤",
+    "description": "Error message for file reading failure in Traditional Chinese"
   }
 } 
