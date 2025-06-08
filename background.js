@@ -1,9 +1,55 @@
 // Background service worker for Chrome extension
-let foundUrls = [];
+let foundUrlsCache = []; // Memory cache for fast access
 let monitorSettings = {
   enabled: true,
   selectedRule: 'all'
 };
+
+// Initialize from persistent storage when Service Worker starts
+async function initializeFoundUrls() {
+  try {
+    const result = await chrome.storage.session.get(['foundUrls']);
+    foundUrlsCache = result.foundUrls || [];
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to initialize found URLs from storage:`, error);
+    foundUrlsCache = [];
+  }
+}
+
+// Add URL with hybrid caching strategy
+async function addFoundUrl(urlData) {
+  // Immediately add to memory cache for fast access
+  foundUrlsCache.push(urlData);
+  
+  // Limit cache size in memory
+  if (foundUrlsCache.length > 100) {
+    foundUrlsCache = foundUrlsCache.slice(-100);
+  }
+  
+  // Asynchronously backup to persistent storage
+  setTimeout(async () => {
+    try {
+      await chrome.storage.session.set({ 
+        foundUrls: foundUrlsCache 
+      });
+    } catch (error) {
+      console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to backup URLs to storage:`, error);
+    }
+  }, 0);
+}
+
+// Clear URLs from both cache and storage
+async function clearFoundUrls() {
+  foundUrlsCache = [];
+  try {
+    await chrome.storage.session.remove(['foundUrls']);
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to clear URLs from storage:`, error);
+  }
+}
+
+// Initialize on Service Worker startup
+initializeFoundUrls();
 
 // Initialize monitor settings from storage
 chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
@@ -34,7 +80,7 @@ chrome.webRequest.onBeforeRequest.addListener(
           const regex = new RegExp(rule.value, 'i');
           return regex.test(details.url);
         } catch (e) {
-          console.error('Invalid regex pattern:', rule.value);
+          console.error(`[${chrome.i18n.getMessage('extensionName')}] Invalid regex pattern:`, rule.value);
           return false;
         }
       } else if (rule.type === 'startswith') {
@@ -53,8 +99,8 @@ chrome.webRequest.onBeforeRequest.addListener(
         tabId: details.tabId
       };
       
-      // Store the found URL
-      foundUrls.push(urlData);
+      // Store the found URL using hybrid caching
+      await addFoundUrl(urlData);
       
       // Send message to content script to show overlay
       try {
@@ -63,7 +109,7 @@ chrome.webRequest.onBeforeRequest.addListener(
           data: urlData
         });
       } catch (error) {
-        console.log('Could not send message to content script:', error);
+        console.error(`[${chrome.i18n.getMessage('extensionName')}] Could not send message to content script:`, error);
       }
     }
   },
@@ -77,8 +123,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleGetFoundUrls(request, sendResponse);
     return true; // Keep the message channel open for async response
   } else if (request.action === 'clearFoundUrls') {
-    foundUrls = [];
-    sendResponse({ success: true });
+    clearFoundUrls().then(() => {
+      sendResponse({ success: true });
+    }).catch((error) => {
+      console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to clear URLs:`, error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true; // Keep the message channel open for async response
   } else if (request.action === 'updateMonitorSettings') {
     // Update monitor settings
     monitorSettings = request.settings;
@@ -105,7 +156,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Async function to handle getFoundUrls request
 async function handleGetFoundUrls(request, sendResponse) {
   try {
-    let filteredUrls = foundUrls;
+    // Always use the most up-to-date data from memory cache
+    let filteredUrls = foundUrlsCache;
     
     // Filter by rule if specified
     if (request.ruleFilter && request.ruleFilter !== 'all') {
@@ -116,7 +168,7 @@ async function handleGetFoundUrls(request, sendResponse) {
       
       if (rules[ruleIndex]) {
         const targetRule = rules[ruleIndex];
-        filteredUrls = foundUrls.filter(urlData => {
+        filteredUrls = foundUrlsCache.filter(urlData => {
           // Compare by type and value (the essential parts of a rule)
           return urlData.rule.type === targetRule.type && 
                  urlData.rule.value === targetRule.value;
@@ -142,7 +194,7 @@ async function handleGetFoundUrls(request, sendResponse) {
       sendResponse({ urls: filteredUrls });
     }
   } catch (error) {
-    console.error('Error in handleGetFoundUrls:', error);
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Error in handleGetFoundUrls:`, error);
     sendResponse({ urls: [] });
   }
 }
@@ -176,9 +228,18 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 });
 
-// Clean up old URLs (keep only last 100)
-setInterval(() => {
-  if (foundUrls.length > 100) {
-    foundUrls = foundUrls.slice(-100);
+// Enhanced cleanup with hybrid storage management
+setInterval(async () => {
+  if (foundUrlsCache.length > 100) {
+    foundUrlsCache = foundUrlsCache.slice(-100);
+    
+    // Sync the cleaned cache back to persistent storage
+    try {
+      await chrome.storage.session.set({ 
+        foundUrls: foundUrlsCache 
+      });
+    } catch (error) {
+      console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to sync cleaned cache to storage:`, error);
+    }
   }
-}, 60000); // Check every minute 
+}, 60000); // Check every minute
