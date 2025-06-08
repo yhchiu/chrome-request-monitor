@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const urlItem = document.createElement('div');
       urlItem.className = 'url-item';
       
-      const timeString = new Date(urlData.timestamp).toLocaleTimeString('zh-TW', {
+      const timeString = new Date(urlData.timestamp).toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
