@@ -14,6 +14,11 @@ A powerful Chrome extension that monitors network requests on web pages and find
 - ⚙️ **Flexible Settings**: Easily manage matching rules through the options page
 - 📋 **One-click Copy**: Quickly copy found URLs
 
+## 💻 Screenshots
+
+![Custom Rules](screenshot/set-rules.png "Custom Rules")
+![Real-time Monitoring](screenshot/monitoring.png "Real-time Monitoring")
+
 ## 🚀 Installation
 
 ### 1. Developer Mode Installation (Recommended)
