@@ -119,7 +119,7 @@
     "description": "Settings page title"
   },
   "settingsHeader": {
-    "message": "🌐 Network Request Monitor",
+    "message": "Network Request Monitor",
     "description": "Settings page header"
   },
   "settingsSubtitle": {
