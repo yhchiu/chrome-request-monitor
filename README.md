@@ -16,8 +16,14 @@ A powerful Chrome extension that monitors network requests on web pages and find
 
 ## 💻 Screenshots
 
+### Custom Rules
 ![Custom Rules](screenshot/set-rules.png "Custom Rules")
+
+### Real-time Monitoring
 ![Real-time Monitoring](screenshot/monitoring.png "Real-time Monitoring")
+
+### List of Found URLs
+![List of Found URLs](screenshot/found-urls.png "List of Found URLs")
 
 ## 🚀 Installation
 
