@@ -478,6 +478,34 @@
     "message": "悬浮窗口自动消失的时间 (5-300秒)",
     "description": "Help text for timeout field in Simplified Chinese"
   },
+  "overlayPosition": {
+    "message": "悬浮窗口位置",
+    "description": "Overlay position field label in Simplified Chinese"
+  },
+  "overlayPositionHelpText": {
+    "message": "选择悬浮窗口在页面上的出现位置",
+    "description": "Help text for overlay position in Simplified Chinese"
+  },
+  "positionTopRight": {
+    "message": "右上",
+    "description": "Position option: top-right in Simplified Chinese"
+  },
+  "positionTopLeft": {
+    "message": "左上",
+    "description": "Position option: top-left in Simplified Chinese"
+  },
+  "positionBottomRight": {
+    "message": "右下",
+    "description": "Position option: bottom-right in Simplified Chinese"
+  },
+  "positionBottomLeft": {
+    "message": "左下",
+    "description": "Position option: bottom-left in Simplified Chinese"
+  },
+  "errorInvalidPosition": {
+    "message": "无效的悬浮窗口位置",
+    "description": "Error message for invalid overlay position in Simplified Chinese"
+  },
   "overlayExplanationTitle": {
     "message": "💡 说明：",
     "description": "Overlay explanation section title in Simplified Chinese"

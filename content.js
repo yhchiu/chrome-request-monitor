@@ -3,7 +3,8 @@ let overlayContainer = null;
 let activeOverlays = [];
 let overlaySettings = {
   maxOverlays: 5,
-  timeoutSeconds: 30
+  timeoutSeconds: 30,
+  position: 'top-right'
 };
 
 // Global hover state management
@@ -43,6 +44,10 @@ function loadOverlaySettings() {
   chrome.runtime.sendMessage({ action: 'getOverlaySettings' }, function(response) {
     if (response && response.settings) {
       overlaySettings = response.settings;
+      // Apply container position if already created
+      if (overlayContainer) {
+        applyOverlayContainerPosition();
+      }
     }
   });
 }
@@ -99,21 +104,51 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     showUrlOverlay(request.data);
   } else if (request.action === 'updateOverlaySettings') {
     overlaySettings = request.settings;
+    if (overlayContainer) {
+      applyOverlayContainerPosition();
+    }
   }
 });
+
+// Apply overlay container position based on settings
+function applyOverlayContainerPosition() {
+  if (!overlayContainer) return;
+  const pos = overlaySettings.position || 'top-right';
+  const isTop = pos.startsWith('top');
+  const isRight = pos.endsWith('right');
+  // Base styles
+  overlayContainer.style.position = 'fixed';
+  overlayContainer.style.zIndex = '10000';
+  overlayContainer.style.maxWidth = '400px';
+  overlayContainer.style.display = 'flex';
+  overlayContainer.style.flexDirection = 'column';
+  overlayContainer.style.gap = '10px';
+  // Reset sides
+  overlayContainer.style.top = '';
+  overlayContainer.style.right = '';
+  overlayContainer.style.bottom = '';
+  overlayContainer.style.left = '';
+  // Set sides
+  if (isTop) {
+    overlayContainer.style.top = '20px';
+    overlayContainer.style.justifyContent = 'flex-start';
+  } else {
+    overlayContainer.style.bottom = '20px';
+    overlayContainer.style.justifyContent = 'flex-end';
+  }
+  if (isRight) {
+    overlayContainer.style.right = '20px';
+  } else {
+    overlayContainer.style.left = '20px';
+  }
+}
 
 function showUrlOverlay(urlData) {
   // Create overlay container if it doesn't exist
   if (!overlayContainer) {
     overlayContainer = document.createElement('div');
     overlayContainer.id = 'url-monitor-overlay-container';
-    overlayContainer.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
-      max-width: 400px;
-    `;
+    applyOverlayContainerPosition();
     document.body.appendChild(overlayContainer);
   }
   

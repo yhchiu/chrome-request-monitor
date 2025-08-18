@@ -478,6 +478,34 @@
     "message": "懸浮視窗自動消失的時間 (5-300秒)",
     "description": "Help text for timeout field in Traditional Chinese"
   },
+  "overlayPosition": {
+    "message": "懸浮視窗位置",
+    "description": "Overlay position field label in Traditional Chinese"
+  },
+  "overlayPositionHelpText": {
+    "message": "選擇懸浮視窗在頁面上的出現位置",
+    "description": "Help text for overlay position in Traditional Chinese"
+  },
+  "positionTopRight": {
+    "message": "右上",
+    "description": "Position option: top-right in Traditional Chinese"
+  },
+  "positionTopLeft": {
+    "message": "左上",
+    "description": "Position option: top-left in Traditional Chinese"
+  },
+  "positionBottomRight": {
+    "message": "右下",
+    "description": "Position option: bottom-right in Traditional Chinese"
+  },
+  "positionBottomLeft": {
+    "message": "左下",
+    "description": "Position option: bottom-left in Traditional Chinese"
+  },
+  "errorInvalidPosition": {
+    "message": "無效的懸浮視窗位置",
+    "description": "Error message for invalid overlay position in Traditional Chinese"
+  },
   "overlayExplanationTitle": {
     "message": "💡 說明：",
     "description": "Overlay explanation section title in Traditional Chinese"

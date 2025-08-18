@@ -164,7 +164,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.sync.get(['overlaySettings'], function(result) {
       const settings = result.overlaySettings || {
         maxOverlays: 5,
-        timeoutSeconds: 30
+        timeoutSeconds: 30,
+        position: 'top-right'
       };
       sendResponse({ settings: settings });
     });

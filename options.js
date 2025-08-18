@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Overlay settings elements
   const maxOverlays = document.getElementById('maxOverlays');
   const overlayTimeout = document.getElementById('overlayTimeout');
+  const overlayPosition = document.getElementById('overlayPosition');
   const saveButton = document.getElementById('saveButton');
   
   // Data management elements
@@ -442,11 +443,15 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.get(['overlaySettings'], function(result) {
       const settings = result.overlaySettings || {
         maxOverlays: 5,
-        timeoutSeconds: 30
+        timeoutSeconds: 30,
+        position: 'top-right'
       };
       
       maxOverlays.value = settings.maxOverlays;
       overlayTimeout.value = settings.timeoutSeconds;
+      if (overlayPosition) {
+        overlayPosition.value = settings.position || 'top-right';
+      }
     });
   }
   
@@ -465,6 +470,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function saveSettingsFunction() {
     const maxValue = parseInt(maxOverlays.value);
     const timeoutValue = parseInt(overlayTimeout.value);
+    const positionValue = overlayPosition ? overlayPosition.value : 'top-right';
+    const allowedPositions = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
     
     // Validate input
     if (maxValue < 1 || maxValue > 20) {
@@ -477,9 +484,15 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
+    if (!allowedPositions.includes(positionValue)) {
+      showAlert(getMessage('errorInvalidPosition'), 'error');
+      return;
+    }
+    
     const settings = {
       maxOverlays: maxValue,
-      timeoutSeconds: timeoutValue
+      timeoutSeconds: timeoutValue,
+      position: positionValue
     };
     
     chrome.storage.sync.set({ overlaySettings: settings }, function() {
@@ -523,7 +536,8 @@ document.addEventListener('DOMContentLoaded', function() {
         urlRules: result.urlRules || [],
         overlaySettings: result.overlaySettings || {
           maxOverlays: 5,
-          timeoutSeconds: 30
+          timeoutSeconds: 30,
+          position: 'top-right'
         },
         dataSettings: result.dataSettings || {
           maxStorageLimit: 100
@@ -577,9 +591,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validate and prepare overlay settings
         if (settings.overlaySettings && typeof settings.overlaySettings === 'object') {
           const overlay = settings.overlaySettings;
+          const allowedPositions = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
           if (overlay.maxOverlays >= 1 && overlay.maxOverlays <= 20 &&
-              overlay.timeoutSeconds >= 5 && overlay.timeoutSeconds <= 300) {
-            settingsToSave.overlaySettings = overlay;
+              overlay.timeoutSeconds >= 5 && overlay.timeoutSeconds <= 300 &&
+              (!overlay.position || allowedPositions.includes(overlay.position))) {
+            settingsToSave.overlaySettings = {
+              maxOverlays: overlay.maxOverlays,
+              timeoutSeconds: overlay.timeoutSeconds,
+              position: overlay.position || 'top-right'
+            };
           }
         }
         

@@ -468,6 +468,34 @@
     "message": "Time for overlays to automatically disappear (5-300 seconds)",
     "description": "Help text for timeout field"
   },
+  "overlayPosition": {
+    "message": "Overlay Position",
+    "description": "Overlay position field label"
+  },
+  "overlayPositionHelpText": {
+    "message": "Where overlays appear on the page",
+    "description": "Help text for overlay position"
+  },
+  "positionTopRight": {
+    "message": "Top-right",
+    "description": "Position option: top-right"
+  },
+  "positionTopLeft": {
+    "message": "Top-left",
+    "description": "Position option: top-left"
+  },
+  "positionBottomRight": {
+    "message": "Bottom-right",
+    "description": "Position option: bottom-right"
+  },
+  "positionBottomLeft": {
+    "message": "Bottom-left",
+    "description": "Position option: bottom-left"
+  },
+  "errorInvalidPosition": {
+    "message": "Invalid overlay position",
+    "description": "Error message for invalid overlay position"
+  },
   "overlayExplanationTitle": {
     "message": "💡 Explanation:",
     "description": "Overlay explanation section title"
