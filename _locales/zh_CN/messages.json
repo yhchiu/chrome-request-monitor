@@ -534,6 +534,18 @@
     "message": "最大5个悬浮窗口，30秒后自动消失",
     "description": "Overlay default values explanation in Simplified Chinese"
   },
+  "overlayOpacity": {
+    "message": "背景透明度",
+    "description": "Overlay opacity field label in Simplified Chinese"
+  },
+  "overlayOpacityHelpText": {
+    "message": "调整悬浮窗口背景透明度 (0.1-1.0)",
+    "description": "Overlay opacity help text in Simplified Chinese"
+  },
+  "errorInvalidOpacity": {
+    "message": "透明度必须介于 0.1 到 1.0 之间",
+    "description": "Error message for invalid opacity in Simplified Chinese"
+  },
   "moreOptions": {
     "message": "更多",
     "description": "More options button text in Simplified Chinese"

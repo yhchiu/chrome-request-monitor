@@ -105,11 +105,16 @@ chrome.webRequest.onBeforeRequest.addListener(
     });
     
     if (matchedRule) {
-      // Get tab information to include title
+      // Get tab information to include title and determine if we can message this tab
       let tabTitle = chrome.i18n.getMessage('unknown') || 'Unknown';
+      let tabUrl = '';
+      let canSendOverlay = false;
       try {
         const tab = await chrome.tabs.get(details.tabId);
         tabTitle = tab.title || chrome.i18n.getMessage('unknown') || 'Unknown';
+        tabUrl = tab.url || '';
+        // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
+        canSendOverlay = /^https?:\/\//i.test(tabUrl);
       } catch (error) {
         console.warn(`[${chrome.i18n.getMessage('extensionName')}] Could not get tab title:`, error);
       }
@@ -125,14 +130,17 @@ chrome.webRequest.onBeforeRequest.addListener(
       // Store the found URL using hybrid caching
       await addFoundUrl(urlData);
       
-      // Send message to content script to show overlay
-      try {
-        await chrome.tabs.sendMessage(details.tabId, {
-          action: 'showUrlOverlay',
-          data: urlData
-        });
-      } catch (error) {
-        console.error(`[${chrome.i18n.getMessage('extensionName')}] Could not send message to content script:`, error);
+      // Send message to content script to show overlay (only when eligible)
+      if (typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
+        try {
+          await chrome.tabs.sendMessage(details.tabId, {
+            action: 'showUrlOverlay',
+            data: urlData
+          });
+        } catch (error) {
+          // Content script may not be injected yet or page is restricted; skip logging as error to reduce noise
+          console.warn(`[${chrome.i18n.getMessage('extensionName')}] Skipped sending overlay to this tab:`, { tabId: details.tabId, url: tabUrl, reason: error?.message });
+        }
       }
     }
   },
@@ -165,7 +173,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const settings = result.overlaySettings || {
         maxOverlays: 5,
         timeoutSeconds: 30,
-        position: 'top-right'
+        position: 'top-right',
+        opacity: 0.95
       };
       sendResponse({ settings: settings });
     });

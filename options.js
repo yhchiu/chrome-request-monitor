@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const maxOverlays = document.getElementById('maxOverlays');
   const overlayTimeout = document.getElementById('overlayTimeout');
   const overlayPosition = document.getElementById('overlayPosition');
+  const overlayOpacity = document.getElementById('overlayOpacity');
   const saveButton = document.getElementById('saveButton');
   
   // Data management elements
@@ -444,13 +445,17 @@ document.addEventListener('DOMContentLoaded', function() {
       const settings = result.overlaySettings || {
         maxOverlays: 5,
         timeoutSeconds: 30,
-        position: 'top-right'
+        position: 'top-right',
+        opacity: 0.95
       };
       
       maxOverlays.value = settings.maxOverlays;
       overlayTimeout.value = settings.timeoutSeconds;
       if (overlayPosition) {
         overlayPosition.value = settings.position || 'top-right';
+      }
+      if (overlayOpacity) {
+        overlayOpacity.value = settings.opacity != null ? settings.opacity : 0.95;
       }
     });
   }
@@ -472,6 +477,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const timeoutValue = parseInt(overlayTimeout.value);
     const positionValue = overlayPosition ? overlayPosition.value : 'top-right';
     const allowedPositions = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
+    const opacityValue = overlayOpacity ? parseFloat(overlayOpacity.value) : 0.95;
     
     // Validate input
     if (maxValue < 1 || maxValue > 20) {
@@ -488,11 +494,17 @@ document.addEventListener('DOMContentLoaded', function() {
       showAlert(getMessage('errorInvalidPosition'), 'error');
       return;
     }
+
+    if (isNaN(opacityValue) || opacityValue < 0.1 || opacityValue > 1) {
+      showAlert(getMessage('errorInvalidOpacity'), 'error');
+      return;
+    }
     
     const settings = {
       maxOverlays: maxValue,
       timeoutSeconds: timeoutValue,
-      position: positionValue
+      position: positionValue,
+      opacity: opacityValue
     };
     
     chrome.storage.sync.set({ overlaySettings: settings }, function() {
@@ -537,7 +549,8 @@ document.addEventListener('DOMContentLoaded', function() {
         overlaySettings: result.overlaySettings || {
           maxOverlays: 5,
           timeoutSeconds: 30,
-          position: 'top-right'
+          position: 'top-right',
+          opacity: 0.95
         },
         dataSettings: result.dataSettings || {
           maxStorageLimit: 100
@@ -592,13 +605,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (settings.overlaySettings && typeof settings.overlaySettings === 'object') {
           const overlay = settings.overlaySettings;
           const allowedPositions = ['top-right', 'top-left', 'bottom-right', 'bottom-left'];
+          const opacityValid = overlay.opacity == null || (typeof overlay.opacity === 'number' && overlay.opacity >= 0.1 && overlay.opacity <= 1);
           if (overlay.maxOverlays >= 1 && overlay.maxOverlays <= 20 &&
               overlay.timeoutSeconds >= 5 && overlay.timeoutSeconds <= 300 &&
-              (!overlay.position || allowedPositions.includes(overlay.position))) {
+              (!overlay.position || allowedPositions.includes(overlay.position)) &&
+              opacityValid) {
             settingsToSave.overlaySettings = {
               maxOverlays: overlay.maxOverlays,
               timeoutSeconds: overlay.timeoutSeconds,
-              position: overlay.position || 'top-right'
+              position: overlay.position || 'top-right',
+              opacity: overlay.opacity != null ? overlay.opacity : 0.95
             };
           }
         }

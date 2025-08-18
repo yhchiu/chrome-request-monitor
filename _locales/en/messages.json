@@ -524,6 +524,18 @@
     "message": "Maximum 5 overlays, automatically disappear after 30 seconds",
     "description": "Overlay default values explanation"
   },
+  "overlayOpacity": {
+    "message": "Background Opacity",
+    "description": "Overlay opacity field label"
+  },
+  "overlayOpacityHelpText": {
+    "message": "Transparency of overlay background (0.1-1.0)",
+    "description": "Overlay opacity help text"
+  },
+  "errorInvalidOpacity": {
+    "message": "Opacity must be between 0.1 and 1.0",
+    "description": "Error message for invalid opacity"
+  },
   "moreOptions": {
     "message": "More",
     "description": "More options button text"

@@ -107,6 +107,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (overlayContainer) {
       applyOverlayContainerPosition();
     }
+    // Update opacity for existing overlays
+    updateExistingOverlayStyles();
   }
 });
 
@@ -165,7 +167,7 @@ function showUrlOverlay(urlData) {
   const overlay = document.createElement('div');
   overlay.className = 'url-monitor-overlay';
   overlay.style.cssText = `
-    background: rgba(40, 44, 52, 0.95);
+    background: rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95});
     color: #fff;
     padding: 12px;
     border-radius: 8px;
@@ -179,6 +181,14 @@ function showUrlOverlay(urlData) {
     transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
     cursor: default;
   `;
+  // Ensure background overrides stylesheet with !important
+  try {
+    overlay.style.setProperty(
+      'background',
+      `rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95})`,
+      'important'
+    );
+  } catch (e) {}
   
   // Add keyframe animation
   if (!document.getElementById('url-monitor-styles')) {
@@ -252,14 +262,27 @@ function showUrlOverlay(urlData) {
   // Add event listeners
   const copyBtn = overlay.querySelector('.copy-btn');
   const closeBtn = overlay.querySelector('.close-btn');
+  // Initialize buttons background opacity according to settings
+  setOverlayButtonsOpacity(overlay, overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
   
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(urlData.url).then(() => {
       copyBtn.textContent = chrome.i18n.getMessage('copied') || 'Copied!';
-      copyBtn.style.background = '#98c379';
+      const desiredOpacity = globalHoverState ? 1 : (overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
+      try {
+        copyBtn.style.setProperty('background', `rgba(152, 195, 121, ${desiredOpacity})`, 'important');
+      } catch (e) {
+        copyBtn.style.background = `rgba(152, 195, 121, ${desiredOpacity})`;
+      }
       setTimeout(() => {
         copyBtn.textContent = chrome.i18n.getMessage('overlayCopy') || 'Copy';
-        copyBtn.style.background = '#61dafb';
+        // Restore to default copy color with current desired opacity
+        const restoreOpacity = globalHoverState ? 1 : (overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
+        try {
+          copyBtn.style.setProperty('background', `rgba(97, 218, 251, ${restoreOpacity})`, 'important');
+        } catch (e) {
+          copyBtn.style.background = `rgba(97, 218, 251, ${restoreOpacity})`;
+        }
       }, 1500);
     });
   });
@@ -298,6 +321,14 @@ function showUrlOverlay(urlData) {
     timeoutIndicator.style.display = 'inline';
     overlay.style.transform = 'scale(1.02)';
     overlay.style.boxShadow = '0 6px 25px rgba(0, 0, 0, 0.4)';
+    // Force background to full black on hover
+    try {
+      overlay.style.setProperty('background', 'rgba(40, 44, 52, 1)', 'important');
+    } catch (_) {
+      overlay.style.background = 'rgba(40, 44, 52, 1)';
+    }
+    // Buttons follow same full-opacity behavior
+    setOverlayButtonsOpacity(overlay, 1);
   });
   
   overlay.addEventListener('mouseleave', () => {
@@ -316,6 +347,8 @@ function showUrlOverlay(urlData) {
           ol.style.transform = 'scale(1)';
           ol.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
         });
+        // Restore backgrounds to configured opacity
+        updateExistingOverlayStyles();
       }
     }, 100); // 100ms delay
   });
@@ -330,3 +363,41 @@ function showUrlOverlay(urlData) {
     allOverlayTimeouts.set(overlay, null);
   }
 } 
+
+// Update styles of existing overlays when settings change (e.g., opacity)
+function updateExistingOverlayStyles() {
+  const overlays = document.querySelectorAll('.url-monitor-overlay');
+  overlays.forEach(overlay => {
+    try {
+      overlay.style.setProperty(
+        'background',
+        `rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95})`,
+        'important'
+      );
+    } catch (e) {
+      overlay.style.background = `rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95})`;
+    }
+    // Also restore buttons background opacity to match setting
+    setOverlayButtonsOpacity(overlay, overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
+  });
+}
+
+// Helper: set copy/close button backgrounds according to desired opacity
+function setOverlayButtonsOpacity(overlayEl, opacity) {
+  const copy = overlayEl.querySelector('.copy-btn');
+  const close = overlayEl.querySelector('.close-btn');
+  if (copy) {
+    try {
+      copy.style.setProperty('background', `rgba(97, 218, 251, ${opacity})`, 'important');
+    } catch (e) {
+      copy.style.background = `rgba(97, 218, 251, ${opacity})`;
+    }
+  }
+  if (close) {
+    try {
+      close.style.setProperty('background', `rgba(224, 108, 117, ${opacity})`, 'important');
+    } catch (e) {
+      close.style.background = `rgba(224, 108, 117, ${opacity})`;
+    }
+  }
+}

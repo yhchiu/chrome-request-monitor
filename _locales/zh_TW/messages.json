@@ -534,6 +534,18 @@
     "message": "最大5個懸浮視窗，30秒後自動消失",
     "description": "Overlay default values explanation in Traditional Chinese"
   },
+  "overlayOpacity": {
+    "message": "背景透明度",
+    "description": "Overlay opacity field label in Traditional Chinese"
+  },
+  "overlayOpacityHelpText": {
+    "message": "調整懸浮視窗背景透明度 (0.1-1.0)",
+    "description": "Overlay opacity help text in Traditional Chinese"
+  },
+  "errorInvalidOpacity": {
+    "message": "透明度必須介於 0.1 到 1.0 之間",
+    "description": "Error message for invalid opacity in Traditional Chinese"
+  },
   "moreOptions": {
     "message": "更多",
     "description": "More options button text in Traditional Chinese"
