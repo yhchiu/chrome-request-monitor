@@ -4,6 +4,8 @@ A powerful Chrome extension that monitors network requests on web pages and find
 
 [繁體中文說明](README_zh-TW.md)
 
+[Available in the Chrome Web Store](https://chromewebstore.google.com/detail/network-request-monitor/ndjddfkhomfpilckgiejcknepjkpllbh)
+
 ## ✨ Features
 
 - 🔍 **Real-time Monitoring**: Automatically monitors all network requests on active tabs
@@ -27,30 +29,20 @@ A powerful Chrome extension that monitors network requests on web pages and find
 
 ## 🚀 Installation
 
-### 1. Developer Mode Installation (Recommended)
+### From Chrome Web Store (Recommended)
+Install directly from the Chrome Web Store: [Network Request Monitor](https://chromewebstore.google.com/detail/network-request-monitor/ndjddfkhomfpilckgiejcknepjkpllbh)
 
-1. Open Chrome browser
-2. Navigate to `chrome://extensions/`
-3. Enable "Developer mode" in the top right corner
-4. Click "Load unpacked"
-5. Select the folder containing the extension files
-6. Extension installation complete!
+1. Visit the Chrome Web Store link above
+2. Click "Add to Chrome" button
+3. Confirm the installation when prompted
 
-### 2. File Structure
-
-```
-chrome_request_monitor/
-├── manifest.json          # Extension configuration file
-├── background.js          # Background service script
-├── content.js            # Content script
-├── popup.html            # Popup window page
-├── popup.js              # Popup window script
-├── options.html          # Options page
-├── options.js            # Options page script
-├── styles.css            # Style file
-├── README.md             # Documentation (English)
-└── README_zh-TW.md       # Documentation (Traditional Chinese)
-```
+### From Source
+1. Download or clone this repository
+2. Open your browser's extension management page:
+   - Chrome: Go to `chrome://extensions/`
+   - Edge: Go to `edge://extensions/`
+3. Enable "Developer mode"
+4. Click "Load unpacked" and select the extension folder
 
 ## 📖 Usage Guide
 

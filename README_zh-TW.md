@@ -4,6 +4,8 @@
 
 [English Documentation](README.md)
 
+[點此連結在 Chrome 線上應用程式商店安裝這個擴充功能](https://chromewebstore.google.com/detail/network-request-monitor/ndjddfkhomfpilckgiejcknepjkpllbh)
+
 ## ✨ 功能特色
 
 - 🔍 **實時監控**：自動監控活動標籤頁的所有網絡請求
@@ -27,30 +29,20 @@
 
 ## 🚀 安裝方法
 
-### 1. 開發者模式安裝（推薦）
+### 從 Chrome 線上應用程式商店安裝（建議）
+直接從 Chrome 線上應用程式商店安裝：[網路請求監控器](https://chromewebstore.google.com/detail/network-request-monitor/ndjddfkhomfpilckgiejcknepjkpllbh)
 
-1. 打開Chrome瀏覽器
-2. 訪問 `chrome://extensions/`
-3. 開啟右上角的「開發者模式」
-4. 點擊「載入未封裝項目」
-5. 選擇包含擴展文件的資料夾
-6. 擴展安裝完成！
+1. 請點上方的 Chrome 線上應用程式商店連結
+2. 點選「加到 Chrome」按鈕
+3. 出現提示時確認安裝
 
-### 2. 文件結構
-
-```
-chrome_request_monitor/
-├── manifest.json          # 擴展配置文件
-├── background.js          # 後台服務腳本
-├── content.js            # 內容腳本
-├── popup.html            # 彈出窗口頁面
-├── popup.js              # 彈出窗口腳本
-├── options.html          # 選項頁面
-├── options.js            # 選項頁面腳本
-├── styles.css            # 樣式文件
-├── README.md             # 說明文件 (英文)
-└── README_zh-TW.md       # 說明文件 (繁體中文)
-```
+### 從來源安裝
+1. 下載或複製此程式碼
+2. 開啟瀏覽器的擴充功能管理頁面：
+- Chrome：前往 `chrome://extensions/`
+- Edge：前往 `edge://extensions/`
+3. 啟用 “開發人員模式”
+4. 點選「載入未封裝項目」並選擇擴充功能資料夾
 
 ## 📖 使用指南
 
