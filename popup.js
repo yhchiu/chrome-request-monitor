@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function init() {
     loadMonitorSettings();
     loadRules();
-    loadUrls();
   }
   
   // Load monitor settings from storage
@@ -48,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       updateMonitorUI();
       updateRuleSelector();
+      loadUrls();
     });
   }
   
@@ -255,4 +255,4 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initialize popup
   init();
-}); 
+});
