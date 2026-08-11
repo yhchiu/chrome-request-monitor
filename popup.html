@@ -119,31 +119,64 @@
       transform: translateX(20px);
     }
     
-    .rule-selector {
+    .rule-focus {
       margin-top: 10px;
     }
-    
-    .rule-selector select {
-      width: 100%;
-      padding: 6px 8px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    
-    .rule-selector select option {
-      background: #2c3e50;
-      color: #fff;
-    }
-    
-    .rule-selector label {
+
+    .rule-focus > label {
       display: block;
       font-size: 11px;
       color: rgba(255, 255, 255, 0.8);
       margin-bottom: 4px;
+    }
+
+    /* Roughly eight rows before it starts scrolling */
+    .rule-focus-list {
+      max-height: 176px;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 0;
+    }
+
+    .rule-focus-list.disabled {
+      opacity: 0.5;
+    }
+
+    .rule-focus-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .rule-focus-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .rule-focus-list.disabled .rule-focus-option {
+      cursor: default;
+    }
+
+    .rule-focus-option input {
+      margin: 0;
+      flex-shrink: 0;
+      cursor: inherit;
+    }
+
+    .rule-focus-option span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rule-focus-help {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 4px;
     }
     
     .controls {
@@ -333,11 +366,12 @@
         </label>
       </div>
       
-      <div class="rule-selector">
-        <label for="ruleSelector" data-i18n="selectRule">Select monitoring rule:</label>
-        <select id="ruleSelector">
-          <option value="all" data-i18n="allRules">All rules</option>
-        </select>
+      <div class="rule-focus">
+        <label data-i18n="showRules">Show rules:</label>
+        <div id="ruleFocusList" class="rule-focus-list"></div>
+        <div class="rule-focus-help" data-i18n="showRulesHelp">
+          Also controls which overlays appear on the page
+        </div>
       </div>
     </div>
   </div>
@@ -367,10 +401,11 @@
     
     <div id="emptyState" class="empty-state" style="display: none;">
       <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-      <div style="font-size: 14px; margin-bottom: 8px;" data-i18n="noMatchingUrls">No matching URLs found yet</div>
-      <div style="font-size: 12px; color: rgba(255, 255, 255, 0.6);" data-i18n="noMatchingUrlsHint">
+      <div id="emptyStateTitle" style="font-size: 14px; margin-bottom: 8px;" data-i18n="noMatchingUrls">No matching URLs found yet</div>
+      <div id="emptyStateHint" style="font-size: 12px; color: rgba(255, 255, 255, 0.6);" data-i18n="noMatchingUrlsHint">
         URLs matching your rules will appear here when you visit websites
       </div>
+      <button id="showAllRulesBtn" class="btn btn-primary" style="display: none; margin-top: 12px;" data-i18n="showAllRules">Show all</button>
     </div>
   </div>
   

@@ -107,9 +107,21 @@
     "message": "監控已停用",
     "description": "Monitor disabled status in Traditional Chinese"
   },
-  "selectRule": {
-    "message": "選擇監控規則：",
-    "description": "Rule selector label in Traditional Chinese"
+  "showRules": {
+    "message": "顯示規則：",
+    "description": "Rule focus list label in Traditional Chinese"
+  },
+  "showRulesHelp": {
+    "message": "同時決定頁面上懸浮視窗的顯示範圍",
+    "description": "Help text under the rule focus list in Traditional Chinese"
+  },
+  "noFocusedRules": {
+    "message": "目前沒有顯示任何規則",
+    "description": "Empty state title when no rule is focused in Traditional Chinese"
+  },
+  "showAllRules": {
+    "message": "顯示全部",
+    "description": "Button that focuses every rule again in Traditional Chinese"
   },
   "allRules": {
     "message": "所有規則",

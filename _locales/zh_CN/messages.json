@@ -107,9 +107,21 @@
     "message": "监控已停用",
     "description": "Monitor disabled status in Simplified Chinese"
   },
-  "selectRule": {
-    "message": "选择监控规则：",
-    "description": "Rule selector label in Simplified Chinese"
+  "showRules": {
+    "message": "显示规则：",
+    "description": "Rule focus list label in Simplified Chinese"
+  },
+  "showRulesHelp": {
+    "message": "同时决定页面上悬浮窗口的显示范围",
+    "description": "Help text under the rule focus list in Simplified Chinese"
+  },
+  "noFocusedRules": {
+    "message": "目前没有显示任何规则",
+    "description": "Empty state title when no rule is focused in Simplified Chinese"
+  },
+  "showAllRules": {
+    "message": "显示全部",
+    "description": "Button that focuses every rule again in Simplified Chinese"
   },
   "allRules": {
     "message": "所有规则",

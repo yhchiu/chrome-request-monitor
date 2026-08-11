@@ -22,12 +22,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const optionsBtn = document.getElementById('optionsBtn');
   const optionsLink = document.getElementById('optionsLink');
   const tabFilterToggle = document.getElementById('tabFilterToggle');
-  
+  const emptyStateTitle = document.getElementById('emptyStateTitle');
+  const emptyStateHint = document.getElementById('emptyStateHint');
+  const showAllRulesBtn = document.getElementById('showAllRulesBtn');
+
   // Monitor control elements
   const monitorToggle = document.getElementById('monitorToggle');
   const monitorStatus = document.getElementById('monitorStatus');
   const statusIndicator = document.getElementById('statusIndicator');
-  const ruleSelector = document.getElementById('ruleSelector');
+  const ruleFocusList = document.getElementById('ruleFocusList');
   
   let monitorEnabled = true;
   // Rules currently being shown. null means every rule, an array means only
@@ -64,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
       focusedRuleIds = Array.isArray(result.focusedRuleIds) ? result.focusedRuleIds : null;
       focusedRulesLoaded = true;
 
-      updateRuleSelector();
+      updateFocusCheckboxes();
       loadUrlsWhenReady();
     });
   }
@@ -75,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
       allRules = result.urlRules || [];
       rulesLoaded = true;
 
-      populateRuleSelector();
+      renderRuleFocusList();
       loadUrlsWhenReady();
     });
   }
@@ -112,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     focusedRuleIds = knownIds.length > 0 ? knownIds : null;
-    updateRuleSelector();
+    updateFocusCheckboxes();
     return true;
   }
   
@@ -127,34 +130,102 @@ document.addEventListener('DOMContentLoaded', function() {
       monitorStatus.textContent = getMessage('monitorDisabled');
       statusIndicator.classList.add('disabled');
     }
+
+    setFocusListEnabled(monitorEnabled);
+  }
+
+  // The list is empty for two different reasons, and they need different words
+  function showEmptyState() {
+    const noRulesShown = Array.isArray(focusedRuleIds) && focusedRuleIds.length === 0;
+
+    emptyState.style.display = 'block';
+    emptyStateTitle.textContent = getMessage(noRulesShown ? 'noFocusedRules' : 'noMatchingUrls');
+    emptyStateHint.style.display = noRulesShown ? 'none' : 'block';
+    showAllRulesBtn.style.display = noRulesShown ? 'inline-flex' : 'none';
   }
   
-  // Update rule selector based on the current focus
-  function updateRuleSelector() {
-    ruleSelector.value = focusedRuleIds === null ? 'all' : (focusedRuleIds[0] || 'all');
+  // Tick the boxes that match the current focus
+  function updateFocusCheckboxes() {
+    ruleFocusList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.checked = checkbox.value === 'all'
+        ? focusedRuleIds === null
+        : (focusedRuleIds === null || focusedRuleIds.includes(checkbox.value));
+    });
   }
-  
-  // Populate rule selector dropdown
-  function populateRuleSelector() {
-    // Clear existing options except "all"
-    const allOption = ruleSelector.querySelector('option[value="all"]');
-    ruleSelector.innerHTML = '';
-    ruleSelector.appendChild(allOption);
-    
-    // Add rule options. A rule without an id cannot be filtered on, so it is
-    // left out until the background migration gives it one.
+
+  // Build the list of rules that can be shown
+  function renderRuleFocusList() {
+    ruleFocusList.innerHTML = '';
+    ruleFocusList.appendChild(createFocusOption('all', getMessage('allRules')));
+
+    // A rule without an id cannot be focused, so it is left out until the
+    // background migration gives it one.
     allRules.forEach((rule, index) => {
       if (!rule.id) {
         return;
       }
 
-      const option = document.createElement('option');
-      option.value = rule.id;
-      option.textContent = rule.name || `${getMessage('rule')} ${index + 1}`;
-      ruleSelector.appendChild(option);
+      ruleFocusList.appendChild(
+        createFocusOption(rule.id, rule.name || `${getMessage('rule')} ${index + 1}`)
+      );
     });
-    
-    updateRuleSelector();
+
+    updateFocusCheckboxes();
+    setFocusListEnabled(monitorEnabled);
+  }
+
+  function createFocusOption(value, label) {
+    const option = document.createElement('label');
+    option.className = 'rule-focus-option';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = value;
+    checkbox.addEventListener('change', function() {
+      if (this.value === 'all') {
+        focusedRuleIds = this.checked ? null : [];
+      } else {
+        toggleRuleFocus(this.value, this.checked);
+      }
+
+      updateFocusCheckboxes();
+      saveFocusedRules(loadUrls);
+    });
+
+    const text = document.createElement('span');
+    text.textContent = label;
+
+    option.appendChild(checkbox);
+    option.appendChild(text);
+    return option;
+  }
+
+  // Add or remove one rule from the focus
+  function toggleRuleFocus(ruleId, isFocused) {
+    const ruleIds = allRules.filter(rule => rule.id).map(rule => rule.id);
+    const selected = new Set(focusedRuleIds === null ? ruleIds : focusedRuleIds);
+
+    if (isFocused) {
+      selected.add(ruleId);
+    } else {
+      selected.delete(ruleId);
+    }
+
+    // Keep the rule order so the stored value is stable
+    const next = ruleIds.filter(id => selected.has(id));
+
+    // Every rule selected means the same as no focus at all. Store it that way
+    // so "show everything" has a single representation.
+    focusedRuleIds = next.length === ruleIds.length ? null : next;
+  }
+
+  // The monitor being off makes the focus meaningless, but the choice is kept
+  // so turning it back on restores what the user was looking at.
+  function setFocusListEnabled(isEnabled) {
+    ruleFocusList.classList.toggle('disabled', !isEnabled);
+    ruleFocusList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.disabled = !isEnabled;
+    });
   }
   
   // Save monitor settings to storage
@@ -206,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const filterText = currentTabOnly ? getMessage('currentTab') : getMessage('allTabs');
         urlCount.textContent = getMessage('foundUrls', [response.urls.length.toString(), filterText]);
       } else {
-        emptyState.style.display = 'block';
+        showEmptyState();
         const filterText = currentTabOnly ? getMessage('currentTab') : getMessage('allTabs');
         urlCount.textContent = getMessage('foundUrls', ['0', filterText]);
       }
@@ -282,9 +353,10 @@ document.addEventListener('DOMContentLoaded', function() {
     saveMonitorSettings();
   });
   
-  // Rule selector change event
-  ruleSelector.addEventListener('change', function() {
-    focusedRuleIds = this.value === 'all' ? null : [this.value];
+  // Escape hatch from the empty state when nothing is being shown
+  showAllRulesBtn.addEventListener('click', function() {
+    focusedRuleIds = null;
+    updateFocusCheckboxes();
     saveFocusedRules(loadUrls);
   });
   

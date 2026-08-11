@@ -106,9 +106,21 @@
     "message": "Monitor Disabled",
     "description": "Monitor disabled status"
   },
-  "selectRule": {
-    "message": "Select monitoring rule:",
-    "description": "Rule selector label"
+  "showRules": {
+    "message": "Show rules:",
+    "description": "Rule focus list label"
+  },
+  "showRulesHelp": {
+    "message": "Also controls which overlays appear on the page",
+    "description": "Help text under the rule focus list"
+  },
+  "noFocusedRules": {
+    "message": "No rules are being shown",
+    "description": "Empty state title when no rule is focused"
+  },
+  "showAllRules": {
+    "message": "Show all",
+    "description": "Button that focuses every rule again"
   },
   "allRules": {
     "message": "All Rules",
