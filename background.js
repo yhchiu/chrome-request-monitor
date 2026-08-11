@@ -10,6 +10,46 @@ let dataSettings = {
   maxStorageLimit: 100
 };
 
+// Generate a stable identifier for a rule
+function createRuleId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Give stored rules a stable id and convert the legacy index based rule filter.
+// Runs on every Service Worker start because rules can also arrive from another
+// device through sync storage. Safe to repeat: it only writes when something is
+// missing.
+async function migrateRuleIds() {
+  try {
+    const result = await chrome.storage.sync.get(['urlRules', 'selectedRule']);
+    const rules = result.urlRules || [];
+    const selectedRule = result.selectedRule || 'all';
+    const updates = {};
+
+    if (rules.some(rule => !rule.id)) {
+      updates.urlRules = rules.map(rule => rule.id ? rule : { ...rule, id: createRuleId() });
+    }
+
+    // Legacy filters stored the rule's array index, which silently points at a
+    // different rule once any earlier rule is deleted. Convert it once to the
+    // matching id, or drop it when the index no longer resolves.
+    if (selectedRule !== 'all' && /^\d+$/.test(selectedRule)) {
+      const migratedRules = updates.urlRules || rules;
+      const targetRule = migratedRules[parseInt(selectedRule, 10)];
+      updates.selectedRule = targetRule ? targetRule.id : 'all';
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await chrome.storage.sync.set(updates);
+    }
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to migrate rule ids:`, error);
+  }
+}
+
 // Initialize from persistent storage when Service Worker starts
 async function initializeFoundUrls() {
   try {
@@ -55,6 +95,7 @@ async function clearFoundUrls() {
 
 // Initialize on Service Worker startup
 initializeFoundUrls();
+migrateRuleIds();
 
 // Initialize monitor settings from storage
 chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {

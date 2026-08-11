@@ -1,4 +1,13 @@
 // Options page script for Chrome extension
+
+// Generate a stable identifier for a rule
+function createRuleId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const ruleForm = document.getElementById('ruleForm');
   const rulesList = document.getElementById('rulesList');
@@ -596,9 +605,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Validate and prepare URL rules
         if (settings.urlRules && Array.isArray(settings.urlRules)) {
-          settingsToSave.urlRules = settings.urlRules.filter(rule => 
-            rule && rule.name && rule.type && rule.value
-          );
+          // Older exports have no ids, and a hand edited file can repeat one.
+          // Give every imported rule an id that is unique within the import.
+          const usedIds = new Set();
+          settingsToSave.urlRules = settings.urlRules
+            .filter(rule => rule && rule.name && rule.type && rule.value)
+            .map(rule => {
+              const id = rule.id && !usedIds.has(rule.id) ? rule.id : createRuleId();
+              usedIds.add(id);
+              return { ...rule, id: id };
+            });
         }
         
         // Validate and prepare overlay settings
@@ -785,6 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         // Add new rule
         const newRule = {
+          id: createRuleId(),
           name: name,
           type: type,
           value: value,
