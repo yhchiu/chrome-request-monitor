@@ -8,6 +8,54 @@ function createRuleId() {
   return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Which rules should be shown after a rule is added. A rule the user has just
+// created should be visible straight away, so it joins a narrowed selection
+// rather than being silently left out of it: a new rule that does nothing looks
+// like a broken rule.
+function focusAfterRuleAdded(focusedRuleIds, addedRuleId) {
+  if (focusedRuleIds === null) {
+    return null;
+  }
+
+  return focusedRuleIds.includes(addedRuleId)
+    ? focusedRuleIds
+    : focusedRuleIds.concat([addedRuleId]);
+}
+
+// Which rules should be shown after a rule is deleted. Dropping the last shown
+// rule would leave everything silent, which is not what deleting a rule asks
+// for, so the selection widens back to every rule instead.
+function focusAfterRuleDeleted(focusedRuleIds, deletedRuleId) {
+  if (focusedRuleIds === null) {
+    return null;
+  }
+
+  const remaining = focusedRuleIds.filter(id => id !== deletedRuleId);
+  if (remaining.length === focusedRuleIds.length) {
+    return focusedRuleIds;
+  }
+
+  return remaining.length > 0 ? remaining : null;
+}
+
+// Apply a change to the shown rules. The background owns the write so its copy
+// stays current and the open tabs hear about it.
+function applyFocusChange(update) {
+  chrome.storage.local.get(['focusedRuleIds'], function(result) {
+    const current = Array.isArray(result.focusedRuleIds) ? result.focusedRuleIds : null;
+    const next = update(current);
+
+    if (next === current) {
+      return;
+    }
+
+    chrome.runtime.sendMessage({
+      action: 'setFocusedRules',
+      focusedRuleIds: next
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const ruleForm = document.getElementById('ruleForm');
   const rulesList = document.getElementById('rulesList');
@@ -648,6 +696,9 @@ document.addEventListener('DOMContentLoaded', function() {
           if (chrome.runtime.lastError) {
             showAlert(getMessage('errorImportingSettings', [chrome.runtime.lastError.message]), 'error');
           } else {
+            // The imported rules are a different set, so any narrowing the user
+            // had before no longer means anything
+            applyFocusChange(() => null);
             showAlert(getMessage('importSuccess'));
             // Reload the page to reflect imported settings
             setTimeout(() => {
@@ -815,6 +866,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (chrome.runtime.lastError) {
             showAlert(getMessage('errorSavingRule', [chrome.runtime.lastError.message]), 'error');
           } else {
+            applyFocusChange(current => focusAfterRuleAdded(current, newRule.id));
             showAlert(getMessage('ruleAddedSuccess'));
             resetForm();
             loadRules();
@@ -884,6 +936,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (chrome.runtime.lastError) {
               showAlert(getMessage('errorDeletingRule', [chrome.runtime.lastError.message]), 'error');
             } else {
+              applyFocusChange(current => focusAfterRuleDeleted(current, deletedRule.id));
               showAlert(getMessage('ruleDeletedSuccess', [deletedRule.name]));
               // Reset form if we're editing the deleted rule
               if (editingIndex.value === index.toString()) {
@@ -904,6 +957,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (chrome.runtime.lastError) {
           showAlert(getMessage('errorClearingRules', [chrome.runtime.lastError.message]), 'error');
         } else {
+          // Nothing is left to narrow down to
+          applyFocusChange(() => null);
           showAlert(getMessage('allRulesCleared'));
           loadRules();
         }
