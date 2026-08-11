@@ -58,7 +58,9 @@ function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
   const syncArea = createStorageArea(sync);
   const localArea = createStorageArea(local);
   const sessionArea = createStorageArea(session);
+  const tabMessages = [];
   let messageListener;
+  let requestListener;
 
   const chrome = {
     i18n: {
@@ -81,12 +83,24 @@ function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
     },
     tabs: {
       get: () => Promise.resolve({ title: 'tab', url: 'https://example.com' }),
-      query: () => Promise.resolve([{ id: 1 }]),
-      sendMessage: () => Promise.resolve()
+      query: (queryInfo, callback) => {
+        const tabs = [{ id: 1 }];
+        if (callback) {
+          callback(tabs);
+          return undefined;
+        }
+        return Promise.resolve(tabs);
+      },
+      sendMessage: (tabId, message) => {
+        tabMessages.push({ tabId, message });
+        return Promise.resolve();
+      }
     },
     webRequest: {
       onBeforeRequest: {
-        addListener() {}
+        addListener(listener) {
+          requestListener = listener;
+        }
       }
     }
   };
@@ -121,6 +135,20 @@ function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
       return new Promise(resolve => {
         messageListener(message, {}, resolve);
       });
+    },
+    // Drive the webRequest listener the way Chrome would
+    async request(url, tabId = 1) {
+      await requestListener({ url, tabId });
+    },
+    overlayMessages() {
+      return tabMessages
+        .filter(entry => entry.message.action === 'showUrlOverlay')
+        .map(entry => entry.message.data.rule.id);
+    },
+    focusBroadcasts() {
+      return tabMessages
+        .filter(entry => entry.message.action === 'updateFocusedRules')
+        .map(entry => plain(entry.message.focusedRuleIds));
     },
     getFoundUrls(request) {
       return new Promise(resolve => {
@@ -284,6 +312,65 @@ test('setFocusedRules updates the focus before it responds', async () => {
   const urls = await harness.getFoundUrls();
   assert.deepEqual(urls.map(entry => entry.url), ['https://b.example.com/1']);
   assert.deepEqual(plain(harness.localData.focusedRuleIds), ['rule-b']);
+});
+
+const TWO_RULES = [
+  { id: 'rule-a', name: 'A', type: 'contains', value: 'a.example.com' },
+  { id: 'rule-b', name: 'B', type: 'contains', value: 'b.example.com' }
+];
+
+test('an overlay is sent for a focused rule', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-a'] }
+  });
+
+  await harness.settle();
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+
+  assert.deepEqual(harness.overlayMessages(), ['rule-a']);
+});
+
+test('no overlay is sent for a rule outside the focus', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-a'] }
+  });
+
+  await harness.settle();
+  await harness.request('https://b.example.com/one');
+  await harness.settle();
+
+  assert.deepEqual(harness.overlayMessages(), []);
+});
+
+test('a rule outside the focus is still captured', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-a'] }
+  });
+
+  await harness.settle();
+  await harness.request('https://b.example.com/one');
+  await harness.settle();
+
+  // Showing every rule again reveals what was captured quietly.
+  await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: null });
+  const urls = await harness.getFoundUrls();
+  assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-b']);
+});
+
+test('changing the focus is broadcast to the tabs', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: null }
+  });
+
+  await harness.settle();
+  await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: ['rule-b'] });
+
+  assert.deepEqual(harness.focusBroadcasts(), [['rule-b']]);
 });
 
 test('the old single rule filter moves to local storage', async () => {

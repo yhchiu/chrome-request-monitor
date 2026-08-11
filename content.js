@@ -102,6 +102,8 @@ loadOverlaySettings();
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'showUrlOverlay') {
     showUrlOverlay(request.data);
+  } else if (request.action === 'updateFocusedRules') {
+    removeUnfocusedOverlays(request.focusedRuleIds);
   } else if (request.action === 'updateOverlaySettings') {
     overlaySettings = request.settings;
     if (overlayContainer) {
@@ -111,6 +113,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     updateExistingOverlayStyles();
   }
 });
+
+// Drop overlays whose rule is no longer being shown. New overlays are already
+// filtered in the background, so this only clears what is still on screen when
+// the user changes what they are looking at.
+function removeUnfocusedOverlays(focusedRuleIds) {
+  // null means every rule is shown, so there is nothing to take away
+  if (!Array.isArray(focusedRuleIds)) {
+    return;
+  }
+
+  // Copy first: removeOverlay mutates activeOverlays as it goes
+  activeOverlays.slice().forEach(overlay => {
+    if (!focusedRuleIds.includes(overlay.dataset.ruleId)) {
+      removeOverlay(overlay);
+    }
+  });
+}
 
 // Apply overlay container position based on settings
 function applyOverlayContainerPosition() {
@@ -166,6 +185,10 @@ function showUrlOverlay(urlData) {
   // Create individual overlay box
   const overlay = document.createElement('div');
   overlay.className = 'url-monitor-overlay';
+  // Remembered so the overlay can be taken away when its rule stops being shown
+  if (urlData.rule && urlData.rule.id) {
+    overlay.dataset.ruleId = urlData.rule.id;
+  }
   overlay.style.cssText = `
     background: rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95});
     color: #fff;

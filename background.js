@@ -23,6 +23,21 @@ function isRuleFocused(ruleId) {
   return focusedRuleIds === null || focusedRuleIds.includes(ruleId);
 }
 
+// Tell every tab about the new focus so overlays for rules that are no longer
+// shown disappear, instead of lingering until they time out.
+function broadcastFocusedRules() {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach(tab => {
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'updateFocusedRules',
+        focusedRuleIds: focusedRuleIds
+      }).catch(() => {
+        // Ignore errors for tabs that don't have the content script
+      });
+    });
+  });
+}
+
 // Generate a stable identifier for a rule
 function createRuleId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -231,8 +246,11 @@ chrome.webRequest.onBeforeRequest.addListener(
       // Store the found URL using hybrid caching
       await addFoundUrl(urlData);
       
-      // Send message to content script to show overlay (only when eligible)
-      if (typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
+      // Send message to content script to show overlay (only when eligible).
+      // A rule outside the current focus is still recorded above, it just does
+      // not interrupt the page.
+      if (isRuleFocused(matchedRule.id) &&
+          typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
         try {
           await chrome.tabs.sendMessage(details.tabId, {
             action: 'showUrlOverlay',
@@ -272,6 +290,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Update the in-memory copy before responding so the caller's next query
     // already sees the new focus.
     focusedRuleIds = normalizeFocusedRuleIds(request.focusedRuleIds);
+    broadcastFocusedRules();
     chrome.storage.local.set({ focusedRuleIds: focusedRuleIds }).then(() => {
       sendResponse({ success: true });
     }).catch((error) => {
