@@ -23,11 +23,13 @@ function createElement() {
   };
 }
 
-function createPopupHarness() {
+function createPopupHarness({ rules = [], deferRules = false } = {}) {
   const domReadyListeners = [];
   const elements = new Map();
   const messages = [];
+  const writes = [];
   let monitorSettingsCallback;
+  let rulesCallback;
 
   const document = {
     addEventListener(type, listener) {
@@ -65,9 +67,16 @@ function createPopupHarness() {
             return;
           }
 
-          callback({ urlRules: [] });
+          if (deferRules) {
+            rulesCallback = callback;
+            return;
+          }
+
+          callback({ urlRules: rules });
         },
-        set() {}
+        set(items) {
+          writes.push(items);
+        }
       }
     }
   };
@@ -98,6 +107,9 @@ function createPopupHarness() {
     getFoundUrlsRequests() {
       return messages.filter(message => message.action === 'getFoundUrls');
     },
+    getWrites() {
+      return writes;
+    },
     openPopup() {
       assert.equal(domReadyListeners.length, 1);
       domReadyListeners[0]();
@@ -105,22 +117,69 @@ function createPopupHarness() {
     resolveMonitorSettings(settings) {
       assert.ok(monitorSettingsCallback);
       monitorSettingsCallback(settings);
+    },
+    resolveRules(loadedRules) {
+      assert.ok(rulesCallback);
+      rulesCallback({ urlRules: loadedRules });
     }
   };
 }
 
 test('loads URLs once with the saved rule after monitor settings are restored', () => {
-  const popup = createPopupHarness();
+  const popup = createPopupHarness({
+    rules: [
+      { id: 'rule-a', name: 'A', type: 'contains', value: 'a' },
+      { id: 'rule-b', name: 'B', type: 'contains', value: 'b' }
+    ]
+  });
 
   popup.openPopup();
   assert.equal(popup.getFoundUrlsRequests().length, 0);
 
   popup.resolveMonitorSettings({
     monitorEnabled: true,
-    selectedRule: '1'
+    selectedRule: 'rule-b'
   });
 
   const requests = popup.getFoundUrlsRequests();
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].ruleFilter, '1');
+  assert.equal(requests[0].ruleFilter, 'rule-b');
+});
+
+test('waits for the rule list before the first query when rules load last', () => {
+  const popup = createPopupHarness({ deferRules: true });
+
+  popup.openPopup();
+  popup.resolveMonitorSettings({
+    monitorEnabled: true,
+    selectedRule: 'rule-a'
+  });
+
+  // The saved filter cannot be checked until the rules are known.
+  assert.equal(popup.getFoundUrlsRequests().length, 0);
+
+  popup.resolveRules([{ id: 'rule-a', name: 'A', type: 'contains', value: 'a' }]);
+
+  const requests = popup.getFoundUrlsRequests();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].ruleFilter, 'rule-a');
+});
+
+test('falls back to all rules when the saved rule was deleted', () => {
+  const popup = createPopupHarness({
+    rules: [{ id: 'rule-b', name: 'B', type: 'contains', value: 'b' }]
+  });
+
+  popup.openPopup();
+  popup.resolveMonitorSettings({
+    monitorEnabled: true,
+    selectedRule: 'rule-a'
+  });
+
+  const requests = popup.getFoundUrlsRequests();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].ruleFilter, 'all');
+
+  // The correction is persisted so the next open starts clean.
+  assert.ok(popup.getWrites().some(write => write.selectedRule === 'all'));
 });

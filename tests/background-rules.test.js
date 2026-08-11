@@ -188,6 +188,93 @@ test('migration does not write when rules already have ids', async () => {
   assert.equal(harness.syncData.selectedRule, 'rule-a');
 });
 
+test('found URLs are filtered by rule id', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [
+        { id: 'rule-a', name: 'A', type: 'contains', value: 'a' },
+        { id: 'rule-b', name: 'B', type: 'contains', value: 'b' }
+      ]
+    },
+    session: {
+      foundUrls: [
+        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
+        { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } },
+        { url: 'https://a.example.com/2', timestamp: 3, tabId: 1, rule: { id: 'rule-a' } }
+      ]
+    }
+  });
+
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-a' });
+  assert.deepEqual(urls.map(entry => entry.url), [
+    'https://a.example.com/1',
+    'https://a.example.com/2'
+  ]);
+});
+
+test('deleting an earlier rule does not change what the remaining filter returns', async () => {
+  const harness = createBackgroundHarness({
+    // Rule A has been deleted, so under the old index scheme the filter for
+    // rule B pointed at a missing index and returned nothing.
+    sync: {
+      urlRules: [{ id: 'rule-b', name: 'B', type: 'contains', value: 'b' }]
+    },
+    session: {
+      foundUrls: [
+        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
+        { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } }
+      ]
+    }
+  });
+
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-b' });
+  assert.deepEqual(urls.map(entry => entry.url), ['https://b.example.com/1']);
+});
+
+test('editing a rule value keeps the URLs it already matched', async () => {
+  const harness = createBackgroundHarness({
+    // The rule now looks for a different host than when the URL was captured.
+    sync: {
+      urlRules: [{ id: 'rule-a', name: 'A', type: 'contains', value: 'api.other.com' }]
+    },
+    session: {
+      foundUrls: [
+        {
+          url: 'https://api.example.com/v1',
+          timestamp: 1,
+          tabId: 1,
+          rule: { id: 'rule-a', type: 'contains', value: 'api.example.com' }
+        }
+      ]
+    }
+  });
+
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-a' });
+  assert.equal(urls.length, 1);
+  assert.equal(urls[0].url, 'https://api.example.com/v1');
+});
+
+test('an unknown rule filter returns no URLs', async () => {
+  const harness = createBackgroundHarness({
+    session: {
+      foundUrls: [
+        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } }
+      ]
+    }
+  });
+
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-gone' });
+  assert.deepEqual(urls, []);
+});
+
 test('migration keeps ids that are already present and fills in only the gaps', async () => {
   const harness = createBackgroundHarness({
     sync: {

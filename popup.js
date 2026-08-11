@@ -32,31 +32,61 @@ document.addEventListener('DOMContentLoaded', function() {
   let monitorEnabled = true;
   let selectedRule = 'all';
   let allRules = [];
-  
+  let monitorSettingsLoaded = false;
+  let rulesLoaded = false;
+
   // Initialize popup
   function init() {
     loadMonitorSettings();
     loadRules();
   }
-  
+
   // Load monitor settings from storage
   function loadMonitorSettings() {
     chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
       monitorEnabled = result.monitorEnabled !== false; // Default to true
       selectedRule = result.selectedRule || 'all';
-      
+      monitorSettingsLoaded = true;
+
       updateMonitorUI();
       updateRuleSelector();
-      loadUrls();
+      loadUrlsWhenReady();
     });
   }
-  
+
   // Load rules from storage
   function loadRules() {
     chrome.storage.sync.get(['urlRules'], (result) => {
       allRules = result.urlRules || [];
+      rulesLoaded = true;
+
       populateRuleSelector();
+      loadUrlsWhenReady();
     });
+  }
+
+  // Load URLs once both the saved filter and the rule list are known, so a
+  // filter pointing at a deleted rule is caught before the first query.
+  function loadUrlsWhenReady() {
+    if (!monitorSettingsLoaded || !rulesLoaded) {
+      return;
+    }
+
+    discardMissingRuleFilter();
+    loadUrls();
+  }
+
+  // Reset the filter when the selected rule is gone, which happens when it was
+  // deleted, when all rules were cleared, or when an import replaced them.
+  // Without this the popup would keep querying a rule that can never match.
+  function discardMissingRuleFilter() {
+    if (selectedRule === 'all' || allRules.some(rule => rule.id === selectedRule)) {
+      return;
+    }
+
+    selectedRule = 'all';
+    updateRuleSelector();
+    saveMonitorSettings();
   }
   
   // Update monitor UI based on current state
@@ -84,10 +114,15 @@ document.addEventListener('DOMContentLoaded', function() {
     ruleSelector.innerHTML = '';
     ruleSelector.appendChild(allOption);
     
-    // Add rule options
+    // Add rule options. A rule without an id cannot be filtered on, so it is
+    // left out until the background migration gives it one.
     allRules.forEach((rule, index) => {
+      if (!rule.id) {
+        return;
+      }
+
       const option = document.createElement('option');
-      option.value = index.toString();
+      option.value = rule.id;
       option.textContent = rule.name || `${getMessage('rule')} ${index + 1}`;
       ruleSelector.appendChild(option);
     });

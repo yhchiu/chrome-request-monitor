@@ -233,23 +233,13 @@ async function handleGetFoundUrls(request, sendResponse) {
     // Always use the most up-to-date data from memory cache
     let filteredUrls = foundUrlsCache;
     
-    // Filter by rule if specified
+    // Filter by rule if specified. Each stored URL keeps the rule it matched,
+    // so the id is enough on its own: no lookup against the current rules, and
+    // editing a rule later does not hide the URLs it already matched.
     if (request.ruleFilter && request.ruleFilter !== 'all') {
-      const ruleIndex = parseInt(request.ruleFilter);
-      // Get current rules from storage
-      const result = await chrome.storage.sync.get(['urlRules']);
-      const rules = result.urlRules || [];
-      
-      if (rules[ruleIndex]) {
-        const targetRule = rules[ruleIndex];
-        filteredUrls = foundUrlsCache.filter(urlData => {
-          // Compare by type and value (the essential parts of a rule)
-          return urlData.rule.type === targetRule.type && 
-                 urlData.rule.value === targetRule.value;
-        });
-      } else {
-        filteredUrls = [];
-      }
+      filteredUrls = foundUrlsCache.filter(
+        urlData => urlData.rule && urlData.rule.id === request.ruleFilter
+      );
     }
     
     if (request.currentTabOnly) {
