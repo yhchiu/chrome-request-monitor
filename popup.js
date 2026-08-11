@@ -30,25 +30,40 @@ document.addEventListener('DOMContentLoaded', function() {
   const ruleSelector = document.getElementById('ruleSelector');
   
   let monitorEnabled = true;
-  let selectedRule = 'all';
+  // Rules currently being shown. null means every rule, an array means only
+  // those ids, and an empty array means none of them.
+  let focusedRuleIds = null;
   let allRules = [];
   let monitorSettingsLoaded = false;
+  let focusedRulesLoaded = false;
   let rulesLoaded = false;
 
   // Initialize popup
   function init() {
     loadMonitorSettings();
+    loadFocusedRules();
     loadRules();
   }
 
   // Load monitor settings from storage
   function loadMonitorSettings() {
-    chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
+    chrome.storage.sync.get(['monitorEnabled'], (result) => {
       monitorEnabled = result.monitorEnabled !== false; // Default to true
-      selectedRule = result.selectedRule || 'all';
       monitorSettingsLoaded = true;
 
       updateMonitorUI();
+      loadUrlsWhenReady();
+    });
+  }
+
+  // Load the focused rules. They live in local storage because they change as
+  // often as the user switches context, and sync storage rejects frequent
+  // writes.
+  function loadFocusedRules() {
+    chrome.storage.local.get(['focusedRuleIds'], (result) => {
+      focusedRuleIds = Array.isArray(result.focusedRuleIds) ? result.focusedRuleIds : null;
+      focusedRulesLoaded = true;
+
       updateRuleSelector();
       loadUrlsWhenReady();
     });
@@ -65,28 +80,40 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Load URLs once both the saved filter and the rule list are known, so a
-  // filter pointing at a deleted rule is caught before the first query.
+  // Load URLs once the focus and the rule list are both known, so a focus
+  // pointing at a deleted rule is caught before the first query.
   function loadUrlsWhenReady() {
-    if (!monitorSettingsLoaded || !rulesLoaded) {
+    if (!monitorSettingsLoaded || !focusedRulesLoaded || !rulesLoaded) {
       return;
     }
 
-    discardMissingRuleFilter();
+    if (dropDeletedRuleIds()) {
+      // Wait for the background to take the correction, otherwise the query
+      // below could still run against the old focus.
+      saveFocusedRules(loadUrls);
+      return;
+    }
+
     loadUrls();
   }
 
-  // Reset the filter when the selected rule is gone, which happens when it was
-  // deleted, when all rules were cleared, or when an import replaced them.
-  // Without this the popup would keep querying a rule that can never match.
-  function discardMissingRuleFilter() {
-    if (selectedRule === 'all' || allRules.some(rule => rule.id === selectedRule)) {
-      return;
+  // Drop ids whose rule is gone, which happens when it was deleted, when all
+  // rules were cleared, or when an import replaced them. Falling back to every
+  // rule beats leaving the popup on a list that can never fill. Returns whether
+  // anything changed.
+  function dropDeletedRuleIds() {
+    if (focusedRuleIds === null) {
+      return false;
     }
 
-    selectedRule = 'all';
+    const knownIds = focusedRuleIds.filter(id => allRules.some(rule => rule.id === id));
+    if (knownIds.length === focusedRuleIds.length) {
+      return false;
+    }
+
+    focusedRuleIds = knownIds.length > 0 ? knownIds : null;
     updateRuleSelector();
-    saveMonitorSettings();
+    return true;
   }
   
   // Update monitor UI based on current state
@@ -102,9 +129,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   
-  // Update rule selector based on selected rule
+  // Update rule selector based on the current focus
   function updateRuleSelector() {
-    ruleSelector.value = selectedRule;
+    ruleSelector.value = focusedRuleIds === null ? 'all' : (focusedRuleIds[0] || 'all');
   }
   
   // Populate rule selector dropdown
@@ -133,16 +160,28 @@ document.addEventListener('DOMContentLoaded', function() {
   // Save monitor settings to storage
   function saveMonitorSettings() {
     chrome.storage.sync.set({
-      monitorEnabled: monitorEnabled,
-      selectedRule: selectedRule
+      monitorEnabled: monitorEnabled
     });
-    
+
     // Notify background script about settings change
     chrome.runtime.sendMessage({
       action: 'updateMonitorSettings',
       settings: {
-        enabled: monitorEnabled,
-        selectedRule: selectedRule
+        enabled: monitorEnabled
+      }
+    });
+  }
+
+  // Save the focused rules through the background so its in-memory copy is
+  // updated before the next query runs. The background owns the write, which
+  // keeps a single writer for this key.
+  function saveFocusedRules(callback) {
+    chrome.runtime.sendMessage({
+      action: 'setFocusedRules',
+      focusedRuleIds: focusedRuleIds
+    }, () => {
+      if (callback) {
+        callback();
       }
     });
   }
@@ -156,10 +195,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if we should filter by current tab only (default: true)
     const currentTabOnly = tabFilterToggle ? tabFilterToggle.checked : true;
     
-    chrome.runtime.sendMessage({ 
+    chrome.runtime.sendMessage({
       action: 'getFoundUrls',
-      currentTabOnly: currentTabOnly,
-      ruleFilter: selectedRule
+      currentTabOnly: currentTabOnly
     }, (response) => {
       loading.style.display = 'none';
       
@@ -246,9 +284,8 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Rule selector change event
   ruleSelector.addEventListener('change', function() {
-    selectedRule = this.value;
-    saveMonitorSettings();
-    loadUrls(); // Refresh URLs with new rule filter
+    focusedRuleIds = this.value === 'all' ? null : [this.value];
+    saveFocusedRules(loadUrls);
   });
   
   // Refresh button

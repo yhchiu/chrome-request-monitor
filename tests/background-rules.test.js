@@ -4,6 +4,12 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
+// Arrays built inside the VM belong to another realm, so their prototype does
+// not match this realm's Array and deepStrictEqual rejects them. Copy first.
+function plain(value) {
+  return Array.isArray(value) ? Array.from(value) : value;
+}
+
 // Minimal chrome.storage area that supports both the promise and the callback
 // calling styles used by background.js.
 function createStorageArea(initial) {
@@ -48,8 +54,9 @@ function createStorageArea(initial) {
   };
 }
 
-function createBackgroundHarness({ sync = {}, session = {} } = {}) {
+function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
   const syncArea = createStorageArea(sync);
+  const localArea = createStorageArea(local);
   const sessionArea = createStorageArea(session);
   let messageListener;
 
@@ -66,6 +73,7 @@ function createBackgroundHarness({ sync = {}, session = {} } = {}) {
     },
     storage: {
       sync: syncArea,
+      local: localArea,
       session: sessionArea,
       onChanged: {
         addListener() {}
@@ -101,11 +109,18 @@ function createBackgroundHarness({ sync = {}, session = {} } = {}) {
   return {
     syncData: syncArea.data,
     syncWrites: syncArea.writes,
+    localData: localArea.data,
+    localWrites: localArea.writes,
     // Let the top level async initialization settle.
     async settle() {
-      for (let i = 0; i < 5; i += 1) {
+      for (let i = 0; i < 10; i += 1) {
         await new Promise(resolve => setImmediate(resolve));
       }
+    },
+    sendMessage(message) {
+      return new Promise(resolve => {
+        messageListener(message, {}, resolve);
+      });
     },
     getFoundUrls(request) {
       return new Promise(resolve => {
@@ -142,26 +157,7 @@ test('migration gives every stored rule a stable id', async () => {
   assert.equal(rules[1].created, 2);
 });
 
-test('migration converts a legacy index filter to the matching rule id', async () => {
-  const harness = createBackgroundHarness({
-    sync: {
-      urlRules: [
-        { name: 'A', type: 'contains', value: 'a' },
-        { name: 'B', type: 'contains', value: 'b' },
-        { name: 'C', type: 'contains', value: 'c' }
-      ],
-      selectedRule: '1'
-    }
-  });
-
-  await harness.settle();
-
-  const rules = harness.syncData.urlRules;
-  assert.equal(harness.syncData.selectedRule, rules[1].id);
-  assert.equal(rules[1].name, 'B');
-});
-
-test('migration drops a legacy index filter that no longer resolves', async () => {
+test('a legacy index filter that no longer resolves ends up showing every rule', async () => {
   const harness = createBackgroundHarness({
     sync: {
       urlRules: [{ name: 'A', type: 'contains', value: 'a' }],
@@ -171,67 +167,80 @@ test('migration drops a legacy index filter that no longer resolves', async () =
 
   await harness.settle();
 
-  assert.equal(harness.syncData.selectedRule, 'all');
+  assert.equal(harness.localData.focusedRuleIds, null);
+  assert.equal('selectedRule' in harness.syncData, false);
 });
 
-test('migration does not write when rules already have ids', async () => {
+const CAPTURED_URLS = [
+  { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
+  { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } },
+  { url: 'https://c.example.com/1', timestamp: 3, tabId: 1, rule: { id: 'rule-c' } }
+];
+
+test('a null focus shows every rule', async () => {
   const harness = createBackgroundHarness({
-    sync: {
-      urlRules: [{ id: 'rule-a', name: 'A', type: 'contains', value: 'a' }],
-      selectedRule: 'rule-a'
-    }
+    local: { focusedRuleIds: null },
+    session: { foundUrls: CAPTURED_URLS }
   });
 
   await harness.settle();
 
-  assert.deepEqual(harness.syncWrites, []);
-  assert.equal(harness.syncData.selectedRule, 'rule-a');
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls.length, 3);
 });
 
-test('found URLs are filtered by rule id', async () => {
+test('found URLs are filtered by the focused rule ids', async () => {
   const harness = createBackgroundHarness({
-    sync: {
-      urlRules: [
-        { id: 'rule-a', name: 'A', type: 'contains', value: 'a' },
-        { id: 'rule-b', name: 'B', type: 'contains', value: 'b' }
-      ]
-    },
-    session: {
-      foundUrls: [
-        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
-        { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } },
-        { url: 'https://a.example.com/2', timestamp: 3, tabId: 1, rule: { id: 'rule-a' } }
-      ]
-    }
+    local: { focusedRuleIds: ['rule-a'] },
+    session: { foundUrls: CAPTURED_URLS }
   });
 
   await harness.settle();
 
-  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-a' });
+  const urls = await harness.getFoundUrls();
+  assert.deepEqual(urls.map(entry => entry.url), ['https://a.example.com/1']);
+});
+
+test('several rules can be focused at once', async () => {
+  const harness = createBackgroundHarness({
+    local: { focusedRuleIds: ['rule-a', 'rule-c'] },
+    session: { foundUrls: CAPTURED_URLS }
+  });
+
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls();
   assert.deepEqual(urls.map(entry => entry.url), [
     'https://a.example.com/1',
-    'https://a.example.com/2'
+    'https://c.example.com/1'
   ]);
 });
 
-test('deleting an earlier rule does not change what the remaining filter returns', async () => {
+test('an empty focus shows nothing', async () => {
+  const harness = createBackgroundHarness({
+    local: { focusedRuleIds: [] },
+    session: { foundUrls: CAPTURED_URLS }
+  });
+
+  await harness.settle();
+
+  assert.deepEqual(await harness.getFoundUrls(), []);
+});
+
+test('deleting an earlier rule does not change what the remaining focus returns', async () => {
   const harness = createBackgroundHarness({
     // Rule A has been deleted, so under the old index scheme the filter for
     // rule B pointed at a missing index and returned nothing.
     sync: {
       urlRules: [{ id: 'rule-b', name: 'B', type: 'contains', value: 'b' }]
     },
-    session: {
-      foundUrls: [
-        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
-        { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } }
-      ]
-    }
+    local: { focusedRuleIds: ['rule-b'] },
+    session: { foundUrls: CAPTURED_URLS }
   });
 
   await harness.settle();
 
-  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-b' });
+  const urls = await harness.getFoundUrls();
   assert.deepEqual(urls.map(entry => entry.url), ['https://b.example.com/1']);
 });
 
@@ -241,6 +250,7 @@ test('editing a rule value keeps the URLs it already matched', async () => {
     sync: {
       urlRules: [{ id: 'rule-a', name: 'A', type: 'contains', value: 'api.other.com' }]
     },
+    local: { focusedRuleIds: ['rule-a'] },
     session: {
       foundUrls: [
         {
@@ -255,24 +265,104 @@ test('editing a rule value keeps the URLs it already matched', async () => {
 
   await harness.settle();
 
-  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-a' });
+  const urls = await harness.getFoundUrls();
   assert.equal(urls.length, 1);
   assert.equal(urls[0].url, 'https://api.example.com/v1');
 });
 
-test('an unknown rule filter returns no URLs', async () => {
+test('setFocusedRules updates the focus before it responds', async () => {
   const harness = createBackgroundHarness({
-    session: {
-      foundUrls: [
-        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } }
-      ]
+    local: { focusedRuleIds: null },
+    session: { foundUrls: CAPTURED_URLS }
+  });
+
+  await harness.settle();
+
+  await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: ['rule-b'] });
+
+  // No settle in between: the next query must already see the new focus.
+  const urls = await harness.getFoundUrls();
+  assert.deepEqual(urls.map(entry => entry.url), ['https://b.example.com/1']);
+  assert.deepEqual(plain(harness.localData.focusedRuleIds), ['rule-b']);
+});
+
+test('the old single rule filter moves to local storage', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [{ id: 'rule-a', name: 'A', type: 'contains', value: 'a' }],
+      selectedRule: 'rule-a'
     }
   });
 
   await harness.settle();
 
-  const urls = await harness.getFoundUrls({ ruleFilter: 'rule-gone' });
-  assert.deepEqual(urls, []);
+  assert.deepEqual(plain(harness.localData.focusedRuleIds), ['rule-a']);
+  assert.equal('selectedRule' in harness.syncData, false);
+});
+
+test('the old "all" filter becomes a null focus', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [{ id: 'rule-a', name: 'A', type: 'contains', value: 'a' }],
+      selectedRule: 'all'
+    }
+  });
+
+  await harness.settle();
+
+  assert.equal(harness.localData.focusedRuleIds, null);
+  assert.equal('selectedRule' in harness.syncData, false);
+});
+
+test('a legacy index filter survives both migrations in order', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [
+        { name: 'A', type: 'contains', value: 'a' },
+        { name: 'B', type: 'contains', value: 'b' }
+      ],
+      selectedRule: '1'
+    }
+  });
+
+  await harness.settle();
+
+  // The index became an id, and then moved to local storage as a set.
+  const rules = harness.syncData.urlRules;
+  assert.deepEqual(plain(harness.localData.focusedRuleIds), [rules[1].id]);
+  assert.equal(rules[1].name, 'B');
+  assert.equal('selectedRule' in harness.syncData, false);
+});
+
+test('an existing local focus wins over a synced legacy filter', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [
+        { id: 'rule-a', name: 'A', type: 'contains', value: 'a' },
+        { id: 'rule-b', name: 'B', type: 'contains', value: 'b' }
+      ],
+      selectedRule: 'rule-a'
+    },
+    local: { focusedRuleIds: ['rule-b'] }
+  });
+
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.localData.focusedRuleIds), ['rule-b']);
+  assert.equal('selectedRule' in harness.syncData, false);
+});
+
+test('nothing is written when there is no legacy filter to move', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [{ id: 'rule-a', name: 'A', type: 'contains', value: 'a' }]
+    }
+  });
+
+  await harness.settle();
+
+  assert.deepEqual(harness.localWrites, []);
+  assert.deepEqual(harness.syncWrites, []);
 });
 
 test('migration keeps ids that are already present and fills in only the gaps', async () => {

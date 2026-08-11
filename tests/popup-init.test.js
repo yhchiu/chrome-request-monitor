@@ -23,11 +23,14 @@ function createElement() {
   };
 }
 
-function createPopupHarness({ rules = [], deferRules = false } = {}) {
+function createPopupHarness({
+  rules = [],
+  focusedRuleIds = null,
+  deferRules = false
+} = {}) {
   const domReadyListeners = [];
   const elements = new Map();
   const messages = [];
-  const writes = [];
   let monitorSettingsCallback;
   let rulesCallback;
 
@@ -55,14 +58,14 @@ function createPopupHarness({ rules = [], deferRules = false } = {}) {
       sendMessage(message, callback) {
         messages.push(message);
         if (callback) {
-          callback({ urls: [] });
+          callback(message.action === 'getFoundUrls' ? { urls: [] } : { success: true });
         }
       }
     },
     storage: {
       sync: {
         get(keys, callback) {
-          if (keys.includes('selectedRule')) {
+          if (keys.includes('monitorEnabled')) {
             monitorSettingsCallback = callback;
             return;
           }
@@ -74,9 +77,13 @@ function createPopupHarness({ rules = [], deferRules = false } = {}) {
 
           callback({ urlRules: rules });
         },
-        set(items) {
-          writes.push(items);
-        }
+        set() {}
+      },
+      local: {
+        get(keys, callback) {
+          callback({ focusedRuleIds: focusedRuleIds });
+        },
+        set() {}
       }
     }
   };
@@ -107,8 +114,8 @@ function createPopupHarness({ rules = [], deferRules = false } = {}) {
     getFoundUrlsRequests() {
       return messages.filter(message => message.action === 'getFoundUrls');
     },
-    getWrites() {
-      return writes;
+    getFocusUpdates() {
+      return messages.filter(message => message.action === 'setFocusedRules');
     },
     openPopup() {
       assert.equal(domReadyListeners.length, 1);
@@ -125,61 +132,71 @@ function createPopupHarness({ rules = [], deferRules = false } = {}) {
   };
 }
 
-test('loads URLs once with the saved rule after monitor settings are restored', () => {
+test('loads URLs once, after every stored setting is restored', () => {
   const popup = createPopupHarness({
     rules: [
       { id: 'rule-a', name: 'A', type: 'contains', value: 'a' },
       { id: 'rule-b', name: 'B', type: 'contains', value: 'b' }
-    ]
+    ],
+    focusedRuleIds: ['rule-b']
   });
 
   popup.openPopup();
   assert.equal(popup.getFoundUrlsRequests().length, 0);
 
-  popup.resolveMonitorSettings({
-    monitorEnabled: true,
-    selectedRule: 'rule-b'
-  });
+  popup.resolveMonitorSettings({ monitorEnabled: true });
 
-  const requests = popup.getFoundUrlsRequests();
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].ruleFilter, 'rule-b');
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
+  // The focus is already stored, so there is nothing to correct.
+  assert.deepEqual(popup.getFocusUpdates(), []);
 });
 
 test('waits for the rule list before the first query when rules load last', () => {
-  const popup = createPopupHarness({ deferRules: true });
-
-  popup.openPopup();
-  popup.resolveMonitorSettings({
-    monitorEnabled: true,
-    selectedRule: 'rule-a'
+  const popup = createPopupHarness({
+    deferRules: true,
+    focusedRuleIds: ['rule-a']
   });
 
-  // The saved filter cannot be checked until the rules are known.
+  popup.openPopup();
+  popup.resolveMonitorSettings({ monitorEnabled: true });
+
+  // The focus cannot be checked until the rules are known.
   assert.equal(popup.getFoundUrlsRequests().length, 0);
 
   popup.resolveRules([{ id: 'rule-a', name: 'A', type: 'contains', value: 'a' }]);
 
-  const requests = popup.getFoundUrlsRequests();
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].ruleFilter, 'rule-a');
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
 });
 
-test('falls back to all rules when the saved rule was deleted', () => {
+test('falls back to every rule when the focused rule was deleted', () => {
   const popup = createPopupHarness({
-    rules: [{ id: 'rule-b', name: 'B', type: 'contains', value: 'b' }]
+    rules: [{ id: 'rule-b', name: 'B', type: 'contains', value: 'b' }],
+    focusedRuleIds: ['rule-a']
   });
 
   popup.openPopup();
-  popup.resolveMonitorSettings({
-    monitorEnabled: true,
-    selectedRule: 'rule-a'
+  popup.resolveMonitorSettings({ monitorEnabled: true });
+
+  // The correction is pushed to the background before anything is queried.
+  const updates = popup.getFocusUpdates();
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].focusedRuleIds, null);
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
+});
+
+test('keeps the rules that still exist when only some were deleted', () => {
+  const popup = createPopupHarness({
+    rules: [
+      { id: 'rule-a', name: 'A', type: 'contains', value: 'a' },
+      { id: 'rule-c', name: 'C', type: 'contains', value: 'c' }
+    ],
+    focusedRuleIds: ['rule-a', 'rule-b', 'rule-c']
   });
 
-  const requests = popup.getFoundUrlsRequests();
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].ruleFilter, 'all');
+  popup.openPopup();
+  popup.resolveMonitorSettings({ monitorEnabled: true });
 
-  // The correction is persisted so the next open starts clean.
-  assert.ok(popup.getWrites().some(write => write.selectedRule === 'all'));
+  const updates = popup.getFocusUpdates();
+  assert.equal(updates.length, 1);
+  assert.deepEqual(updates[0].focusedRuleIds, ['rule-a', 'rule-c']);
 });

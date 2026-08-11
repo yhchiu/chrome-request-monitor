@@ -1,14 +1,27 @@
 // Background service worker for Chrome extension
 let foundUrlsCache = []; // Memory cache for fast access
 let monitorSettings = {
-  enabled: true,
-  selectedRule: 'all'
+  enabled: true
 };
+
+// Rules the user is currently showing. null means every rule, an array means
+// only those ids, and an empty array means none of them.
+let focusedRuleIds = null;
 
 // Data settings
 let dataSettings = {
   maxStorageLimit: 100
 };
+
+// null means every rule; anything that is not an array is read the same way
+function normalizeFocusedRuleIds(value) {
+  return Array.isArray(value) ? value : null;
+}
+
+// Whether a rule falls inside the current focus
+function isRuleFocused(ruleId) {
+  return focusedRuleIds === null || focusedRuleIds.includes(ruleId);
+}
 
 // Generate a stable identifier for a rule
 function createRuleId() {
@@ -48,6 +61,54 @@ async function migrateRuleIds() {
   } catch (error) {
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to migrate rule ids:`, error);
   }
+}
+
+// Move the old single rule filter to the focused rule set in local storage.
+// The filter used to live in sync storage, but it changes as often as the user
+// switches context and sync storage rejects frequent writes.
+async function migrateFocusedRules() {
+  try {
+    const [syncResult, localResult] = await Promise.all([
+      chrome.storage.sync.get(['selectedRule']),
+      chrome.storage.local.get(['focusedRuleIds'])
+    ]);
+
+    if (syncResult.selectedRule === undefined) {
+      return;
+    }
+
+    // Local storage wins when both exist, which happens once another device
+    // syncs an old value in after this one has already migrated.
+    if (localResult.focusedRuleIds === undefined) {
+      await chrome.storage.local.set({
+        focusedRuleIds: syncResult.selectedRule === 'all' ? null : [syncResult.selectedRule]
+      });
+    }
+
+    await chrome.storage.sync.remove(['selectedRule']);
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to migrate focused rules:`, error);
+  }
+}
+
+// Load the focused rules into memory so requests can be filtered without
+// touching storage
+async function initializeFocusedRules() {
+  try {
+    const result = await chrome.storage.local.get(['focusedRuleIds']);
+    focusedRuleIds = normalizeFocusedRuleIds(result.focusedRuleIds);
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to load focused rules:`, error);
+    focusedRuleIds = null;
+  }
+}
+
+// Migrations run in order: rule ids first, because the focused rule migration
+// reads a filter that the first one may still be converting from an index.
+async function migrateStoredData() {
+  await migrateRuleIds();
+  await migrateFocusedRules();
+  await initializeFocusedRules();
 }
 
 // Initialize from persistent storage when Service Worker starts
@@ -95,12 +156,11 @@ async function clearFoundUrls() {
 
 // Initialize on Service Worker startup
 initializeFoundUrls();
-migrateRuleIds();
+migrateStoredData();
 
 // Initialize monitor settings from storage
-chrome.storage.sync.get(['monitorEnabled', 'selectedRule'], (result) => {
+chrome.storage.sync.get(['monitorEnabled'], (result) => {
   monitorSettings.enabled = result.monitorEnabled !== false; // Default to true
-  monitorSettings.selectedRule = result.selectedRule || 'all';
 });
 
 // Initialize data settings from storage
@@ -208,6 +268,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
   } else if (request.action === 'getMonitorSettings') {
     sendResponse({ settings: monitorSettings });
+  } else if (request.action === 'setFocusedRules') {
+    // Update the in-memory copy before responding so the caller's next query
+    // already sees the new focus.
+    focusedRuleIds = normalizeFocusedRuleIds(request.focusedRuleIds);
+    chrome.storage.local.set({ focusedRuleIds: focusedRuleIds }).then(() => {
+      sendResponse({ success: true });
+    }).catch((error) => {
+      console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to save focused rules:`, error);
+      sendResponse({ success: false });
+    });
+    return true; // Keep the message channel open for async response
   } else if (request.action === 'getOverlaySettings') {
     // Handle overlay settings asynchronously
     chrome.storage.sync.get(['overlaySettings'], function(result) {
@@ -233,12 +304,12 @@ async function handleGetFoundUrls(request, sendResponse) {
     // Always use the most up-to-date data from memory cache
     let filteredUrls = foundUrlsCache;
     
-    // Filter by rule if specified. Each stored URL keeps the rule it matched,
+    // Keep only the focused rules. Each stored URL keeps the rule it matched,
     // so the id is enough on its own: no lookup against the current rules, and
     // editing a rule later does not hide the URLs it already matched.
-    if (request.ruleFilter && request.ruleFilter !== 'all') {
-      filteredUrls = foundUrlsCache.filter(
-        urlData => urlData.rule && urlData.rule.id === request.ruleFilter
+    if (focusedRuleIds !== null) {
+      filteredUrls = filteredUrls.filter(
+        urlData => urlData.rule && focusedRuleIds.includes(urlData.rule.id)
       );
     }
     
@@ -265,15 +336,16 @@ async function handleGetFoundUrls(request, sendResponse) {
 
 // Listen for storage changes to update monitor settings
 chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && changes.focusedRuleIds) {
+    focusedRuleIds = normalizeFocusedRuleIds(changes.focusedRuleIds.newValue);
+  }
+
   if (areaName === 'sync') {
     // Update monitor settings
     if (changes.monitorEnabled) {
       monitorSettings.enabled = changes.monitorEnabled.newValue;
     }
-    if (changes.selectedRule) {
-      monitorSettings.selectedRule = changes.selectedRule.newValue;
-    }
-    
+
     // Update data settings
     if (changes.dataSettings) {
       dataSettings = changes.dataSettings.newValue;
