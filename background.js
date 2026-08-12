@@ -150,7 +150,22 @@ function isRuleFocused(ruleId) {
 // queued ten thousand messages before the browser process answered any of them.
 const BROADCAST_BATCH_SIZE = 50;
 
-// Send a message to every tab that can actually receive it, a batch at a time.
+// Send a message to a known set of tabs, a batch at a time. Kept apart from the
+// query below because not every broadcast has to ask which tabs exist: a caller
+// that already knows its recipients pays nothing to find them.
+async function broadcastToTabIds(tabIds, message) {
+  for (let start = 0; start < tabIds.length; start += BROADCAST_BATCH_SIZE) {
+    const batch = tabIds.slice(start, start + BROADCAST_BATCH_SIZE);
+
+    // Waiting between batches bounds how many messages are in flight and gives
+    // the Service Worker room to answer requests while the broadcast runs.
+    await Promise.all(batch.map(tabId => chrome.tabs.sendMessage(tabId, message).catch(() => {
+      // Ignore errors for tabs that don't have the content script
+    })));
+  }
+}
+
+// Send a message to every tab that can actually receive it.
 //
 // The query is narrowed rather than asking for every tab. A discarded tab has
 // no renderer and a page that is not http or https never ran the content
@@ -172,15 +187,7 @@ async function broadcastToTabs(message) {
     return;
   }
 
-  for (let start = 0; start < tabs.length; start += BROADCAST_BATCH_SIZE) {
-    const batch = tabs.slice(start, start + BROADCAST_BATCH_SIZE);
-
-    // Waiting between batches bounds how many messages are in flight and gives
-    // the Service Worker room to answer requests while the broadcast runs.
-    await Promise.all(batch.map(tab => chrome.tabs.sendMessage(tab.id, message).catch(() => {
-      // Ignore errors for tabs that don't have the content script
-    })));
-  }
+  await broadcastToTabIds(tabs.map(tab => tab.id), message);
 }
 
 // Tell the tabs about the new focus so overlays for rules that are no longer
