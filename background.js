@@ -492,22 +492,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ success: false });
     });
     return true; // Keep the message channel open for async response
-  } else if (request.action === 'getOverlaySettings') {
-    // Handle overlay settings asynchronously
-    chrome.storage.sync.get(['overlaySettings'], function(result) {
-      const settings = result.overlaySettings || {
-        maxOverlays: 5,
-        timeoutSeconds: 30,
-        position: 'top-right',
-        opacity: 0.95
-      };
-      sendResponse({ settings: settings });
-    });
-    return true; // Keep the message channel open for async response
-  } else if (request.action === 'getI18nMessage') {
-    // Handle i18n message requests from content scripts
-    const message = chrome.i18n.getMessage(request.key, request.substitutions);
-    sendResponse({ message: message });
   }
 });
 

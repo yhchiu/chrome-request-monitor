@@ -30,24 +30,29 @@ function localizeOverlay(overlay) {
   const elements = overlay.querySelectorAll('[data-i18n]');
   elements.forEach(element => {
     const key = element.getAttribute('data-i18n');
-    // Send message to background script to get translation
-    chrome.runtime.sendMessage({ action: 'getI18nMessage', key: key }, (response) => {
-      if (response && response.message) {
-        element.textContent = response.message;
-      }
-    });
+    // chrome.i18n works in a content script, so the background is not needed
+    // for this. Asking it cost one message per element, five per overlay, and
+    // every one of those had to reach the Service Worker and come back.
+    const message = chrome.i18n.getMessage(key);
+    if (message) {
+      element.textContent = message;
+    }
   });
 }
 
-// Load overlay settings from storage
+// Load overlay settings from storage.
+//
+// Read straight from storage rather than through the background. A content
+// script runs in every tab, so going through the background woke the Service
+// Worker once per tab just to be handed a value storage can give us directly.
 function loadOverlaySettings() {
-  chrome.runtime.sendMessage({ action: 'getOverlaySettings' }, function(response) {
-    if (response && response.settings) {
-      overlaySettings = response.settings;
-      // Apply container position if already created
-      if (overlayContainer) {
-        applyOverlayContainerPosition();
-      }
+  chrome.storage.sync.get(['overlaySettings'], function(result) {
+    if (result && result.overlaySettings) {
+      overlaySettings = result.overlaySettings;
+    }
+    // Apply container position if already created
+    if (overlayContainer) {
+      applyOverlayContainerPosition();
     }
   });
 }

@@ -4,6 +4,15 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
+// The data-i18n keys the overlay markup carries
+const OVERLAY_I18N_KEYS = [
+  'overlayTitle',
+  'overlayPaused',
+  'rule',
+  'overlayCopy',
+  'overlayClose'
+];
+
 // Enough of an element for the overlay code to build and tear down its boxes
 function createElement(tagName = 'div') {
   const element = {
@@ -39,6 +48,13 @@ function createElement(tagName = 'div') {
       }
       element.parentNode = null;
     },
+    attributes: {},
+    getAttribute(name) {
+      return name in element.attributes ? element.attributes[name] : null;
+    },
+    setAttribute(name, value) {
+      element.attributes[name] = value;
+    },
     addEventListener(type, listener) {
       element.listeners[type] = listener;
     },
@@ -47,8 +63,23 @@ function createElement(tagName = 'div') {
     querySelector() {
       return createElement('button');
     },
-    querySelectorAll() {
-      return [];
+    // innerHTML does not really parse here, so the localizable parts of the
+    // overlay markup stand in as a fixed set. They are remembered so a test can
+    // read back what was written into them.
+    querySelectorAll(selector) {
+      if (selector !== '[data-i18n]') {
+        return [];
+      }
+
+      if (!element.i18nStubs) {
+        element.i18nStubs = OVERLAY_I18N_KEYS.map(key => {
+          const stub = createElement('span');
+          stub.setAttribute('data-i18n', key);
+          return stub;
+        });
+      }
+
+      return element.i18nStubs;
     }
   };
 
@@ -64,9 +95,11 @@ function createElement(tagName = 'div') {
   return element;
 }
 
-function createContentHarness() {
+function createContentHarness({ storedOverlaySettings } = {}) {
   const body = createElement('body');
   const head = createElement('head');
+  const runtimeMessages = [];
+  const storageReads = [];
   let messageListener;
 
   const document = {
@@ -86,11 +119,13 @@ function createContentHarness() {
 
   const chrome = {
     i18n: {
-      getMessage: key => key
+      // Distinct from the key so a test can tell a localized element from an
+      // untouched one
+      getMessage: key => `translated:${key}`
     },
     runtime: {
       sendMessage(message, callback) {
-        // Settings are requested on startup; the defaults are fine here.
+        runtimeMessages.push(message);
         if (callback) {
           callback({});
         }
@@ -98,6 +133,15 @@ function createContentHarness() {
       onMessage: {
         addListener(listener) {
           messageListener = listener;
+        }
+      }
+    },
+    storage: {
+      sync: {
+        get(keys, callback) {
+          // Copied out of the content script's realm so deepEqual accepts it
+          storageReads.push(Array.isArray(keys) ? Array.from(keys) : [keys]);
+          callback(storedOverlaySettings ? { overlaySettings: storedOverlaySettings } : {});
         }
       }
     }
@@ -125,6 +169,14 @@ function createContentHarness() {
   }, { filename: 'content.js' });
 
   return {
+    runtimeMessages,
+    storageReads,
+    // What the last overlay's localizable parts ended up saying
+    localizedTexts() {
+      const container = body.children[0];
+      const overlay = container.children[container.children.length - 1];
+      return overlay.querySelectorAll('[data-i18n]').map(stub => stub.textContent);
+    },
     send(message) {
       messageListener(message, {}, () => {});
     },
@@ -203,4 +255,69 @@ test('an empty focus clears the page', () => {
   assert.deepEqual(content.visibleRuleIds(), []);
   // The container goes with the last overlay rather than sitting there empty.
   assert.equal(content.hasContainer(), false);
+});
+
+// A content script runs in every open tab, so anything it asks the background
+// for is paid once per tab and wakes the Service Worker to do it.
+
+test('an overlay is localized without asking the background', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+
+  assert.deepEqual(content.localizedTexts(), [
+    'translated:overlayTitle',
+    'translated:overlayPaused',
+    'translated:rule',
+    'translated:overlayCopy',
+    'translated:overlayClose'
+  ]);
+  assert.deepEqual(
+    content.runtimeMessages.filter(message => message.action === 'getI18nMessage'),
+    []
+  );
+});
+
+test('showing many overlays sends no messages at all', () => {
+  const content = createContentHarness();
+
+  for (let i = 0; i < 5; i += 1) {
+    content.showUrl(`rule-${i}`);
+  }
+
+  assert.deepEqual(content.runtimeMessages, []);
+});
+
+test('the overlay settings are read from storage rather than from the background', () => {
+  const content = createContentHarness({
+    storedOverlaySettings: {
+      maxOverlays: 2,
+      timeoutSeconds: 10,
+      position: 'bottom-left',
+      opacity: 0.5
+    }
+  });
+
+  assert.deepEqual(content.storageReads, [['overlaySettings']]);
+  assert.deepEqual(
+    content.runtimeMessages.filter(message => message.action === 'getOverlaySettings'),
+    []
+  );
+
+  // The stored limit is the one in force, so it was really applied
+  content.showUrl('rule-a');
+  content.showUrl('rule-b');
+  content.showUrl('rule-c');
+  assert.deepEqual(content.visibleRuleIds(), ['rule-b', 'rule-c']);
+});
+
+test('the built in settings still apply when storage holds none', () => {
+  const content = createContentHarness();
+
+  for (let i = 0; i < 6; i += 1) {
+    content.showUrl(`rule-${i}`);
+  }
+
+  // The default limit of five
+  assert.equal(content.visibleRuleIds().length, 5);
 });
