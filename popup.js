@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const emptyStateTitle = document.getElementById('emptyStateTitle');
   const emptyStateHint = document.getElementById('emptyStateHint');
   const showAllRulesBtn = document.getElementById('showAllRulesBtn');
+  // The URL list scrolls inside this, so it is what has to hold its place when
+  // the rows are rebuilt underneath the user
+  const content = document.getElementById('content');
 
   // Monitor control elements
   const monitorToggle = document.getElementById('monitorToggle');
@@ -252,6 +255,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Where the user is reading, so a rebuilt list can be put back there.
+  //
+  // Rebuilding empties the list first, which collapses the scroll container and
+  // drops the position, so it has to be taken before and restored after.
+  function captureScroll() {
+    return { top: content.scrollTop, height: content.scrollHeight };
+  }
+
+  // Rows arrive at the top, since the list is newest first. Putting the old
+  // offset straight back would still slide whatever the user is reading down
+  // the page by the height of everything that arrived, so the offset moves by
+  // however much taller the list got.
+  //
+  // The very top is left alone. That position means "show me what is coming
+  // in", and new rows belong in view there rather than pushed below the fold.
+  function restoreScroll(before) {
+    if (before.top === 0) {
+      return;
+    }
+
+    content.scrollTop = before.top + (content.scrollHeight - before.height);
+  }
+
   // Load and display URLs.
   //
   // A quiet load is one the user did not ask for, so it leaves what is on
@@ -273,7 +299,12 @@ document.addEventListener('DOMContentLoaded', function() {
       currentTabOnly: currentTabOnly
     }, (response) => {
       loading.style.display = 'none';
-      
+
+      // Taken here rather than before the query: the answer comes back a moment
+      // later and the user may have scrolled in between. A button press is not
+      // worth holding, since it blanks the list out on the way in anyway.
+      const scrollBefore = quiet ? captureScroll() : null;
+
       if (response && response.urls && response.urls.length > 0) {
         displayUrls(response.urls);
         const filterText = currentTabOnly ? getMessage('currentTab') : getMessage('allTabs');
@@ -282,6 +313,10 @@ document.addEventListener('DOMContentLoaded', function() {
         showEmptyState();
         const filterText = currentTabOnly ? getMessage('currentTab') : getMessage('allTabs');
         urlCount.textContent = getMessage('foundUrls', ['0', filterText]);
+      }
+
+      if (scrollBefore) {
+        restoreScroll(scrollBefore);
       }
     });
   }

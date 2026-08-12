@@ -14,6 +14,8 @@ function createElement(tagName = 'div') {
     disabled: false,
     value: '',
     textContent: '',
+    scrollTop: 0,
+    scrollHeight: 0,
     style: {},
     children: [],
     listeners: {},
@@ -136,6 +138,16 @@ function createPopupHarness({
     }
   };
 
+  // The real popup scrolls the container that wraps the URL list, so its height
+  // follows how many rows are in the list. A row stands in as a fixed height,
+  // which is enough to tell whether the position was held as rows arrived.
+  const ROW_HEIGHT = 100;
+  Object.defineProperty(document.getElementById('content'), 'scrollHeight', {
+    get() {
+      return document.getElementById('urlList').children.length * ROW_HEIGHT;
+    }
+  });
+
   const context = vm.createContext({
     chrome,
     clearTimeout,
@@ -222,6 +234,14 @@ function createPopupHarness({
     isLoadingShown() {
       return document.getElementById('loading').style.display === 'block';
     },
+    // Scroll the list the way a user reading down it would
+    scrollTo(top) {
+      document.getElementById('content').scrollTop = top;
+    },
+    scrollTop() {
+      return document.getElementById('content').scrollTop;
+    },
+    rowHeight: ROW_HEIGHT,
     // Capture a URL the way the background does: it lands in what the
     // background answers with, and its backup to session storage is what tells
     // the popup something happened.
@@ -437,6 +457,14 @@ const TWO_CAPTURES = ONE_CAPTURE.concat([{
   rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
 }]);
 
+const FOUR_CAPTURES = TWO_CAPTURES.concat([3, 4].map(n => ({
+  url: `https://api.example.com/${n}`,
+  timestamp: n,
+  tabId: 1,
+  tabTitle: 'A tab',
+  rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
+})));
+
 test('a URL captured while the popup is open shows without a refresh', () => {
   const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
 
@@ -458,6 +486,32 @@ test('an automatic reload does not blank the list out first', () => {
   // the loading indicator, which would make the list flicker while it is read.
   assert.equal(popup.isLoadingShown(), false);
   assert.ok(popup.urlListHtml().includes('/second'));
+});
+
+test('a quiet reload keeps the user where they were reading', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: TWO_CAPTURES });
+
+  // Reading part way down the list
+  popup.scrollTo(popup.rowHeight);
+
+  // Two more arrive at the top, since the list is newest first
+  popup.capture(FOUR_CAPTURES);
+
+  // Moved by however much taller the list got, so the row being read is still
+  // under the same point on screen. Holding the raw offset instead would have
+  // slid it down by the height of what arrived.
+  assert.equal(popup.scrollTop(), popup.rowHeight * 3);
+});
+
+test('a quiet reload leaves the top of the list at the top', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: TWO_CAPTURES });
+
+  // At the top, which is the position that means "show me what is arriving"
+  popup.scrollTo(0);
+
+  popup.capture(FOUR_CAPTURES);
+
+  assert.equal(popup.scrollTop(), 0);
 });
 
 test('a change to another storage area is ignored', () => {
