@@ -402,13 +402,21 @@ async function clearFoundUrls() {
 // Initialize on Service Worker startup.
 //
 // A request is what wakes the Service Worker, so the listener below can run
-// before this has finished. Anything that reads the focus or the rules waits on
-// settingsReady first, otherwise it would decide against the "every rule"
-// default and show overlays the user has hidden, or match against an empty rule
-// set. The catch keeps those waiters from hanging if the initialization ever
+// before this has finished. Everything that matches, captures or reads waits on
+// startupReady first.
+//
+// Without it, the focus would still be the "every rule" default and would show
+// overlays the user has hidden, the rules would still be empty and would match
+// nothing, and restoring the captured URLs would clear whatever a request had
+// captured in the meantime, because the restore replaces what is held rather
+// than adding to it.
+//
+// The catch keeps those waiters from hanging if the initialization ever
 // rejects.
-initializeFoundUrls();
-const settingsReady = migrateStoredData().catch(() => {});
+const startupReady = Promise.all([
+  initializeFoundUrls(),
+  migrateStoredData()
+]).catch(() => {});
 
 // Initialize monitor settings from storage
 chrome.storage.sync.get(['monitorEnabled'], (result) => {
@@ -491,7 +499,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     // kept with the URL always carries an id and can be matched against a focus
     // later. The listener is not blocking, so this delays only our own work:
     // the request still goes ahead and is still captured.
-    await settingsReady;
+    await startupReady;
 
     if (compiledRules.length === 0) return;
 
@@ -579,7 +587,7 @@ async function handleGetFoundUrls(request, sendResponse) {
   try {
     // The popup can ask before the stored focus has been read, which would
     // answer with an unfiltered list
-    await settingsReady;
+    await startupReady;
 
     // Always use the most up-to-date data from memory cache
     let filteredUrls;

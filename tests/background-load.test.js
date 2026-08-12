@@ -15,15 +15,29 @@ function plain(value) {
   return Array.isArray(value) ? Array.from(value) : value;
 }
 
-function createStorageArea(initial) {
+// A held area keeps its reads open until release() is called. That is how a
+// test reproduces a request arriving before initialization has finished: the
+// plain stub resolves within a microtask, which is far too quick for the race
+// to ever show up.
+function createStorageArea(initial, { held = false } = {}) {
   const data = { ...initial };
   const reads = [];
   const writes = [];
+
+  let openReads;
+  const opened = held
+    ? new Promise(resolve => { openReads = resolve; })
+    : null;
 
   return {
     data,
     reads,
     writes,
+    release() {
+      if (openReads) {
+        openReads();
+      }
+    },
     // How many reads asked for this key, which is the per request cost under
     // test
     readsOf(key) {
@@ -44,10 +58,14 @@ function createStorageArea(initial) {
       };
 
       if (callback) {
-        callback(read());
+        if (opened) {
+          opened.then(() => callback(read()));
+        } else {
+          callback(read());
+        }
         return undefined;
       }
-      return Promise.resolve(read());
+      return opened ? opened.then(read) : Promise.resolve(read());
     },
     set(items, callback) {
       Object.assign(data, items);
@@ -77,11 +95,13 @@ function createHarness({
   // Tab ids that reject, the way a tab without the content script does
   unreachableTabIds = [],
   // Tab ids that no longer exist, so asking about them throws
-  missingTabIds = []
+  missingTabIds = [],
+  // Keep the restore of the captured URLs open, so a request can arrive first
+  holdSessionReads = false
 } = {}) {
   const syncArea = createStorageArea(sync);
   const localArea = createStorageArea(local);
-  const sessionArea = createStorageArea(session);
+  const sessionArea = createStorageArea(session, { held: holdSessionReads });
 
   const tabMessages = [];
   const tabQueries = [];
@@ -267,6 +287,15 @@ function createHarness({
     },
     async request(url, tabId = 1) {
       await requestListener({ url, tabId });
+    },
+    // Start a request without waiting for it, so a test can look at what the
+    // background did while the request is still being handled
+    startRequest(url, tabId = 1) {
+      return requestListener({ url, tabId });
+    },
+    // Let a held session storage area answer its reads
+    releaseSessionReads() {
+      sessionArea.release();
     },
     // Deliver a sync change the way Chrome does when another device edits
     syncRules(rules) {
@@ -980,4 +1009,54 @@ test('the backup is written flat so it can be read back', async () => {
   const written = harness.sessionArea.writes[0].foundUrls;
   assert.equal(written.length, 2);
   assert.deepEqual(plain(written.map(entry => entry.tabId)), [2, 3]);
+});
+
+// A request is what wakes the Service Worker, so it can arrive before the
+// captured URLs have been restored from session storage. The restore replaces
+// what is held rather than adding to it, so anything captured first would be
+// wiped by it.
+
+test('a URL captured before the restore finishes is not wiped by it', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    session: {
+      foundUrls: [
+        { url: 'https://a.example.com/restored', timestamp: 1, tabId: 2, rule: { id: 'rule-a' } }
+      ]
+    },
+    holdSessionReads: true
+  });
+
+  const pending = harness.startRequest('https://a.example.com/captured', 2);
+  await harness.settle();
+
+  harness.releaseSessionReads();
+  await pending;
+  await harness.settle();
+
+  harness.setActiveTab(2);
+  const urls = await harness.getFoundUrls({ currentTabOnly: true });
+  assert.deepEqual(plain(urls.map(entry => entry.url)), [
+    'https://a.example.com/restored',
+    'https://a.example.com/captured'
+  ]);
+});
+
+test('nothing is decided about a request until the restore has finished', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    holdSessionReads: true
+  });
+
+  const pending = harness.startRequest('https://a.example.com/one', 2);
+  await harness.settle();
+
+  // The overlay is what shows the request was handled
+  assert.deepEqual(harness.overlayUrls(), []);
+
+  harness.releaseSessionReads();
+  await pending;
+  await harness.settle();
+
+  assert.deepEqual(harness.overlayUrls(), ['https://a.example.com/one']);
 });
