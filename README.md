@@ -69,6 +69,7 @@ After setting up rules, when you browse websites:
 - Use the "Show rules" list to pick which rules you want to see. This controls both the list below it and the overlays on the page; unticked rules are still recorded and reappear when you tick them again
 - A URL can match several rules at once. It is shown as long as any one of those rules is ticked, and the entry names all of them
 - By default, only URLs from the current tab are displayed. Uncheck "Show current tab only" to view URLs from all tabs
+- The list keeps up with what is being captured on its own. Untick "Update automatically" to hold it still while you read; anything captured meanwhile is still recorded, and ticking it again or pressing "Refresh" brings it in
 - View the list of found URLs
 - Click the "Copy URL" button to copy specific URLs
 - Use the "Clear All" button to clear the history

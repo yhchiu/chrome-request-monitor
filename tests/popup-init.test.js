@@ -234,6 +234,15 @@ function createPopupHarness({
     isLoadingShown() {
       return document.getElementById('loading').style.display === 'block';
     },
+    // Tick or untick the automatic update checkbox the way a click would
+    setAutoRefresh(isOn) {
+      const toggle = document.getElementById('autoRefreshToggle');
+      toggle.checked = isOn;
+      toggle.dispatch('change');
+    },
+    isAutoRefreshOn() {
+      return document.getElementById('autoRefreshToggle').checked;
+    },
     // Scroll the list the way a user reading down it would
     scrollTo(top) {
       document.getElementById('content').scrollTop = top;
@@ -486,6 +495,52 @@ test('an automatic reload does not blank the list out first', () => {
   // the loading indicator, which would make the list flicker while it is read.
   assert.equal(popup.isLoadingShown(), false);
   assert.ok(popup.urlListHtml().includes('/second'));
+});
+
+test('automatic updates are on when the popup opens', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  assert.equal(popup.isAutoRefreshOn(), true);
+});
+
+test('turning automatic updates off stops the list following captures', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  popup.setAutoRefresh(false);
+  const queriesBefore = popup.getFoundUrlsRequests().length;
+
+  popup.capture(TWO_CAPTURES);
+
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore);
+  assert.ok(!popup.urlListHtml().includes('/second'), 'the list should be left alone');
+});
+
+test('the refresh button still works with automatic updates off', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  popup.setAutoRefresh(false);
+  popup.capture(TWO_CAPTURES);
+
+  // What was captured while it was off is still recorded, so asking for it
+  // brings it in
+  popup.refresh();
+
+  assert.ok(popup.urlListHtml().includes('/second'));
+});
+
+test('turning automatic updates back on catches up straight away', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  popup.setAutoRefresh(false);
+  popup.capture(TWO_CAPTURES);
+  assert.ok(!popup.urlListHtml().includes('/second'));
+
+  popup.setAutoRefresh(true);
+
+  // Without this the list would sit stale until the next request happened to
+  // match a rule.
+  assert.ok(popup.urlListHtml().includes('/second'));
+  assert.equal(popup.isLoadingShown(), false);
 });
 
 test('a quiet reload keeps the user where they were reading', () => {

@@ -27,6 +27,10 @@
     "message": "Current tab only",
     "description": "Checkbox label for current tab filter"
   },
+  "autoRefresh": {
+    "message": "Update automatically",
+    "description": "Checkbox label for refreshing the list as URLs are found"
+  },
   "currentTab": {
     "message": "(Current tab)",
     "description": "Current tab filter indicator"

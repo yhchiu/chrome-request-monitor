@@ -28,6 +28,10 @@
     "message": "只显示当前标签页",
     "description": "Current tab filter checkbox in Simplified Chinese"
   },
+  "autoRefresh": {
+    "message": "自动更新",
+    "description": "Auto refresh checkbox in Simplified Chinese"
+  },
   "currentTab": {
     "message": "(当前标签页)",
     "description": "Current tab filter indicator in Simplified Chinese"

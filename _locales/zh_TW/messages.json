@@ -28,6 +28,10 @@
     "message": "只顯示目前分頁",
     "description": "Current tab filter checkbox in Traditional Chinese"
   },
+  "autoRefresh": {
+    "message": "自動更新",
+    "description": "Auto refresh checkbox in Traditional Chinese"
+  },
   "currentTab": {
     "message": "(目前分頁)",
     "description": "Current tab filter indicator in Traditional Chinese"

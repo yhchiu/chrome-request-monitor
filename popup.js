@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const optionsBtn = document.getElementById('optionsBtn');
   const optionsLink = document.getElementById('optionsLink');
   const tabFilterToggle = document.getElementById('tabFilterToggle');
+  const autoRefreshToggle = document.getElementById('autoRefreshToggle');
   const emptyStateTitle = document.getElementById('emptyStateTitle');
   const emptyStateHint = document.getElementById('emptyStateHint');
   const showAllRulesBtn = document.getElementById('showAllRulesBtn');
@@ -79,6 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // user actually chose rather than the defaults this page starts with
   function isReady() {
     return monitorSettingsLoaded && focusedRulesLoaded && rulesLoaded;
+  }
+
+  // Whether the list should follow what is being captured. On unless the user
+  // turns it off, so a popup left open keeps up without being asked to.
+  function isAutoRefreshOn() {
+    return autoRefreshToggle ? autoRefreshToggle.checked : true;
   }
 
   // Load URLs once the focus and the rule list are both known, so a focus
@@ -418,6 +425,13 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
+    // Turned off by the user, who is reading rather than watching. What was
+    // captured in the meantime is still recorded, and the refresh button brings
+    // it in when they are ready.
+    if (!isAutoRefreshOn()) {
+      return;
+    }
+
     // Before the stored settings are back there is nothing to update: the load
     // that init is already waiting to run will pick these up.
     if (!isReady()) {
@@ -458,9 +472,24 @@ document.addEventListener('DOMContentLoaded', function() {
   if (tabFilterToggle) {
     // Set default to current tab only
     tabFilterToggle.checked = true;
-    
+
     tabFilterToggle.addEventListener('change', function() {
       loadUrls();
+    });
+  }
+
+  // Auto refresh toggle
+  if (autoRefreshToggle) {
+    // On by default, the same way the tab filter starts ticked
+    autoRefreshToggle.checked = true;
+
+    autoRefreshToggle.addEventListener('change', function() {
+      // Turning it back on catches up with whatever was captured while it was
+      // off, rather than leaving the list stale until the next request happens
+      // to match. Quietly, since the rows on screen are still valid.
+      if (this.checked) {
+        loadUrls({ quiet: true });
+      }
     });
   }
   
