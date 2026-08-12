@@ -10,7 +10,8 @@ A powerful Chrome extension that monitors network requests on web pages and find
 
 - 🔍 **Real-time Monitoring**: Automatically monitors all network requests on active tabs
 - 📋 **Custom Rules**: Supports multiple matching patterns (contains, starts with, ends with, regex)
-- 📌 **Page Overlay Display**: Shows notification boxes on pages when matching URLs are found
+- 📌 **Page Overlay Display**: Shows notification boxes on pages for the rules you are currently showing
+- 👁️ **Rule Selection**: Choose which rules appear in the popup list and as page overlays; every match is still recorded either way
 - 🎯 **Tab Filtering**: Option to display URLs from all tabs or current tab only
 - 📊 **Unified Management**: View all found URLs in the popup window
 - ⚙️ **Flexible Settings**: Easily manage matching rules through the options page
@@ -58,13 +59,14 @@ Install directly from the Chrome Web Store: [Network Request Monitor](https://ch
 ### Step 2: Start Monitoring
 
 After setting up rules, when you browse websites:
-- URLs matching the rules will automatically display notification boxes in the top right corner of the page
+- URLs matching the rules are recorded, and notification boxes appear in the top right corner of the page for the rules you are showing (every rule, by default)
 - Click the "Copy" button in the notification box to copy the URL
 - Click the "Close" button to dismiss the notification box
 
 ### Step 3: View History
 
 - Click the extension icon to open the popup window
+- Use the "Show rules" list to pick which rules you want to see. This controls both the list below it and the overlays on the page; unticked rules are still recorded and reappear when you tick them again
 - By default, only URLs from the current tab are displayed. Uncheck "Show current tab only" to view URLs from all tabs
 - View the list of found URLs
 - Click the "Copy URL" button to copy specific URLs
@@ -111,12 +113,13 @@ After setting up rules, when you browse websites:
 - Real-time monitoring across sites: The extension observes request URLs on pages you visit and matches them against your custom rules. Because target sites cannot be listed in advance, access to all sites is required for reliable operation.
 - Background listener scope: The background service uses `chrome.webRequest.onBeforeRequest` with a URL filter of `<all_urls>` and reads only what is necessary for matching: request URL, timestamp, and tab identification. It does not block or modify traffic and does not read request or response bodies.
 - Content script overlay: The content script runs on pages matching `<all_urls>` only to render a small, temporary on-page overlay when a match is found. It renders UI to help you copy the URL and does not read or alter page content.
-- Data minimization and control: All processing is local. Rules/settings are stored in Chrome Sync; found URLs are kept only for the current session and can be cleared anytime. Monitoring can be toggled, and results can be limited to the current tab.
+- Data minimization and control: All processing is local. Rules/settings are stored in Chrome Sync; the set of rules you are currently showing stays on this device and is never synced; found URLs are kept only for the current session and can be cleared anytime. Monitoring can be toggled, and results can be limited to the current tab.
 
 ## 🔒 Privacy Notice
 
 - This extension only processes data locally and does not upload any information to external servers
 - User-defined rules are stored in Chrome sync storage
+- The set of rules you are currently showing is stored in local storage on this device only, so it does not follow you to another computer
 - Found URLs are only temporarily stored in memory and are not permanently saved
 
 ## 🤝 Contributing
