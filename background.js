@@ -259,31 +259,60 @@ async function initializeFoundUrls() {
   }
 }
 
-// Add URL with hybrid caching strategy
-async function addFoundUrl(urlData) {
-  // Immediately add to memory cache for fast access
-  foundUrlsCache.push(urlData);
-  
-  // Limit cache size in memory
-  if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
-    foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
+// How long a backup is held back so the writes that arrive in the meantime are
+// written once instead of one at a time.
+//
+// The backup exists only so a Service Worker restart does not lose what was
+// captured, and it is read once at startup, so nothing depends on it being
+// current to the millisecond. Writing on every match instead serialized the
+// whole list, which can hold a thousand entries, as often as URLs matched.
+const BACKUP_DELAY_MS = 1000;
+
+let backupTimer = null;
+
+// Back the cache up to session storage, coalescing anything that arrives while
+// a write is already waiting to go out
+function scheduleBackup() {
+  if (backupTimer !== null) {
+    return;
   }
-  
-  // Asynchronously backup to persistent storage
-  setTimeout(async () => {
+
+  backupTimer = setTimeout(async () => {
+    backupTimer = null;
     try {
-      await chrome.storage.session.set({ 
-        foundUrls: foundUrlsCache 
+      await chrome.storage.session.set({
+        foundUrls: foundUrlsCache
       });
     } catch (error) {
       console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to backup URLs to storage:`, error);
     }
-  }, 0);
+  }, BACKUP_DELAY_MS);
+}
+
+// Add URL with hybrid caching strategy
+function addFoundUrl(urlData) {
+  // Immediately add to memory cache for fast access
+  foundUrlsCache.push(urlData);
+
+  // Limit cache size in memory
+  if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
+    foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
+  }
+
+  scheduleBackup();
 }
 
 // Clear URLs from both cache and storage
 async function clearFoundUrls() {
   foundUrlsCache = [];
+
+  // A backup that is still waiting would write the emptied cache straight back
+  // over the removal
+  if (backupTimer !== null) {
+    clearTimeout(backupTimer);
+    backupTimer = null;
+  }
+
   try {
     await chrome.storage.session.remove(['foundUrls']);
   } catch (error) {
@@ -360,7 +389,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       };
       
       // Store the found URL using hybrid caching
-      await addFoundUrl(urlData);
+      addFoundUrl(urlData);
       
       // Send message to content script to show overlay (only when eligible).
       // A rule outside the current focus is still recorded above, it just does
@@ -503,13 +532,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       // Immediately apply new storage limit if current cache exceeds it
       if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
         foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
-        
-        // Sync the trimmed cache back to persistent storage
-        chrome.storage.session.set({ 
-          foundUrls: foundUrlsCache 
-        }).catch((error) => {
-          console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to sync updated cache to storage:`, error);
-        });
+        scheduleBackup();
       }
     }
     
@@ -524,17 +547,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 // Enhanced cleanup with hybrid storage management
-setInterval(async () => {
+setInterval(() => {
   if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
     foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
-    
-    // Sync the cleaned cache back to persistent storage
-    try {
-      await chrome.storage.session.set({ 
-        foundUrls: foundUrlsCache 
-      });
-    } catch (error) {
-      console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to sync cleaned cache to storage:`, error);
-    }
+    scheduleBackup();
   }
 }, 60000); // Check every minute

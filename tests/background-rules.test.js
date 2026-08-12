@@ -153,7 +153,10 @@ function createBackgroundHarness({
     setInterval() {
       return 0;
     },
-    setTimeout
+    setTimeout,
+    // The backup to session storage is scheduled on a timer and cancelled when
+    // the captured URLs are cleared
+    clearTimeout
   });
 
   vm.runInContext(

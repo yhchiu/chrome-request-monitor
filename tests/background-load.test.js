@@ -84,6 +84,7 @@ function createHarness({
   const tabMessages = [];
   const tabQueries = [];
   const errors = [];
+  const timers = [];
 
   // A broadcast used to send to every tab at once. Watching how many messages
   // are outstanding is the only way to see that it no longer does.
@@ -176,7 +177,19 @@ function createHarness({
     setInterval() {
       return 0;
     },
-    setTimeout
+    // Stubbed so a test does not have to wait out the backup delay in real
+    // time. runTimers() is what advances the clock.
+    setTimeout(fn, delay) {
+      const id = timers.length + 1;
+      timers.push({ id, fn, delay, done: false });
+      return id;
+    },
+    clearTimeout(id) {
+      const timer = timers.find(entry => entry.id === id);
+      if (timer) {
+        timer.done = true;
+      }
+    }
   });
 
   vm.runInContext(
@@ -187,9 +200,23 @@ function createHarness({
 
   return {
     syncArea,
+    sessionArea,
     errors,
     tabMessages,
     tabQueries,
+    // Fire every timer that is still waiting, the way the clock reaching the
+    // delay would
+    runTimers() {
+      timers
+        .filter(timer => !timer.done)
+        .forEach(timer => {
+          timer.done = true;
+          timer.fn();
+        });
+    },
+    pendingTimers() {
+      return timers.filter(timer => !timer.done).length;
+    },
     peakInFlight() {
       return peakInFlight;
     },
@@ -217,6 +244,11 @@ function createHarness({
     setFocusedRules(focusedRuleIds) {
       return new Promise(resolve => {
         messageListener({ action: 'setFocusedRules', focusedRuleIds }, {}, resolve);
+      });
+    },
+    clearFoundUrls() {
+      return new Promise(resolve => {
+        messageListener({ action: 'clearFoundUrls' }, {}, resolve);
       });
     },
     messagesOfAction(action) {
@@ -471,6 +503,108 @@ test('an overlay settings change is broadcast the same bounded way', async () =>
   assert.ok(
     harness.peakInFlight() <= 50,
     `expected at most 50 messages in flight, saw ${harness.peakInFlight()}`
+  );
+});
+
+// The backup to session storage serializes the whole captured list, which can
+// hold a thousand entries. Doing that per match was the second largest cost
+// behind reading the rules.
+
+test('many matches in a row are backed up in a single write', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  for (let i = 0; i < 40; i += 1) {
+    await harness.request(`https://a.example.com/${i}`);
+  }
+  await harness.settle();
+
+  // Still waiting, so the writes have not gone out one at a time
+  assert.deepEqual(harness.sessionArea.writes, []);
+
+  harness.runTimers();
+  await harness.settle();
+
+  assert.equal(harness.sessionArea.writes.length, 1);
+  assert.equal(harness.sessionArea.writes[0].foundUrls.length, 40);
+});
+
+test('a backup that has already gone out does not block the next one', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  await harness.request('https://a.example.com/two');
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  assert.equal(harness.sessionArea.writes.length, 2);
+  assert.equal(harness.sessionArea.writes[1].foundUrls.length, 2);
+});
+
+test('everything captured before the backup goes out is still in it', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one');
+  await harness.request('https://b.example.com/2');
+  await harness.request('https://a.example.com/three');
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  const written = harness.sessionArea.writes[0].foundUrls.map(entry => entry.url);
+  assert.deepEqual(plain(written), [
+    'https://a.example.com/one',
+    'https://b.example.com/2',
+    'https://a.example.com/three'
+  ]);
+});
+
+test('clearing drops a backup that was still waiting to go out', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+
+  await harness.clearFoundUrls();
+  await harness.settle();
+
+  // A waiting backup would write the emptied cache straight back over the
+  // removal
+  assert.equal(harness.pendingTimers(), 0);
+
+  harness.runTimers();
+  await harness.settle();
+
+  assert.deepEqual(harness.sessionArea.writes, []);
+  assert.equal('foundUrls' in harness.sessionArea.data, false);
+});
+
+test('capturing again after a clear schedules a fresh backup', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+  await harness.clearFoundUrls();
+  await harness.settle();
+
+  await harness.request('https://a.example.com/two');
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  assert.equal(harness.sessionArea.writes.length, 1);
+  assert.deepEqual(
+    plain(harness.sessionArea.writes[0].foundUrls.map(entry => entry.url)),
+    ['https://a.example.com/two']
   );
 });
 
