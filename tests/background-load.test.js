@@ -203,9 +203,6 @@ function createHarness({
         { filename: file }
       );
     },
-    setInterval() {
-      return 0;
-    },
     // Stubbed so a test does not have to wait out the backup delay in real
     // time. runTimers() is what advances the clock.
     setTimeout(fn, delay) {

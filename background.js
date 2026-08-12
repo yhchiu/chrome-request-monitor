@@ -657,8 +657,3 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
   }
 });
-
-// Enhanced cleanup with hybrid storage management
-setInterval(() => {
-  enforceFoundUrlLimits();
-}, 60000); // Check every minute
