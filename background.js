@@ -41,6 +41,32 @@ function broadcastFocusedRules() {
   });
 }
 
+// Drop focused ids whose rule is gone. Rules can also be deleted on another
+// device, which arrives as a sync change rather than through the options page,
+// and an id pointing at a rule that no longer exists matches nothing, which
+// silences every overlay. Widening back to every rule mirrors what the options
+// page does for a local delete: deleting a rule is not a request to silence
+// the rest.
+function reconcileFocusWithRules(rules) {
+  if (focusedRuleIds === null) {
+    return;
+  }
+
+  const knownIds = focusedRuleIds.filter(id => rules.some(rule => rule.id === id));
+
+  // Nothing was dropped. This also leaves an empty focus alone, which is a
+  // deliberate "show nothing" rather than a stale value.
+  if (knownIds.length === focusedRuleIds.length) {
+    return;
+  }
+
+  focusedRuleIds = knownIds.length > 0 ? knownIds : null;
+  broadcastFocusedRules();
+  chrome.storage.local.set({ focusedRuleIds: focusedRuleIds }).catch((error) => {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to save focused rules:`, error);
+  });
+}
+
 // Generate a stable identifier for a rule
 function createRuleId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -87,7 +113,7 @@ async function migrateRuleIds() {
 async function migrateFocusedRules() {
   try {
     const [syncResult, localResult] = await Promise.all([
-      chrome.storage.sync.get(['selectedRule']),
+      chrome.storage.sync.get(['selectedRule', 'urlRules']),
       chrome.storage.local.get(['focusedRuleIds'])
     ]);
 
@@ -98,8 +124,16 @@ async function migrateFocusedRules() {
     // Local storage wins when both exist, which happens once another device
     // syncs an old value in after this one has already migrated.
     if (localResult.focusedRuleIds === undefined) {
+      // The rule named by the old filter may have been deleted on another
+      // device before this one migrated. Carrying that id across would leave a
+      // focus that matches nothing and shows nothing at all.
+      const rules = syncResult.urlRules || [];
+      const targetExists = rules.some(rule => rule.id === syncResult.selectedRule);
+
       await chrome.storage.local.set({
-        focusedRuleIds: syncResult.selectedRule === 'all' ? null : [syncResult.selectedRule]
+        focusedRuleIds: syncResult.selectedRule === 'all' || !targetExists
+          ? null
+          : [syncResult.selectedRule]
       });
     }
 
@@ -386,6 +420,12 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 
   if (areaName === 'sync') {
+    // Rules can be deleted on another device, so the focus has to be checked
+    // against what is left
+    if (changes.urlRules) {
+      reconcileFocusWithRules(changes.urlRules.newValue || []);
+    }
+
     // Update monitor settings
     if (changes.monitorEnabled) {
       monitorSettings.enabled = changes.monitorEnabled.newValue;

@@ -90,6 +90,7 @@ function createBackgroundHarness({
   const tabMessages = [];
   let messageListener;
   let requestListener;
+  let storageListener;
 
   const chrome = {
     i18n: {
@@ -107,7 +108,9 @@ function createBackgroundHarness({
       local: localArea,
       session: sessionArea,
       onChanged: {
-        addListener() {}
+        addListener(listener) {
+          storageListener = listener;
+        }
       }
     },
     tabs: {
@@ -163,6 +166,13 @@ function createBackgroundHarness({
     // Let a held local storage area answer its reads
     releaseLocalReads() {
       localArea.release();
+    },
+    // Deliver a sync storage change the way Chrome does when another device
+    // edits the rules
+    syncRules(rules) {
+      const oldValue = syncArea.data.urlRules;
+      syncArea.data.urlRules = rules;
+      storageListener({ urlRules: { oldValue, newValue: rules } }, 'sync');
     },
     sendMessage(message) {
       return new Promise(resolve => {
@@ -477,6 +487,90 @@ test('a URL captured before the migration finishes still carries a rule id', asy
   const urls = await harness.getFoundUrls();
   assert.equal(urls.length, 1);
   assert.ok(urls[0].rule.id, 'the captured rule should carry an id');
+});
+
+// Rules can also be deleted on another device, which arrives here as a sync
+// change rather than through the options page. Ids left pointing at rules that
+// are gone match nothing, which silences every overlay.
+
+test('a rule deleted on another device drops out of the focus', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-a', 'rule-b'] }
+  });
+
+  await harness.settle();
+  harness.syncRules([TWO_RULES[1]]);
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.localData.focusedRuleIds), ['rule-b']);
+  assert.deepEqual(harness.focusBroadcasts(), [['rule-b']]);
+});
+
+test('deleting the last focused rule on another device widens back to every rule', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-a'] }
+  });
+
+  await harness.settle();
+  harness.syncRules([TWO_RULES[1]]);
+  await harness.settle();
+
+  // Deleting a rule is not a request to silence the rest
+  assert.equal(harness.localData.focusedRuleIds, null);
+  assert.deepEqual(harness.focusBroadcasts(), [null]);
+
+  await harness.request('https://b.example.com/one');
+  await harness.settle();
+  assert.deepEqual(harness.overlayMessages(), ['rule-b']);
+});
+
+test('a sync change that removes no focused rule writes nothing', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-b'] }
+  });
+
+  await harness.settle();
+  const writesBefore = harness.localWrites.length;
+
+  // Rule A was never focused, so the focus does not change
+  harness.syncRules([TWO_RULES[1]]);
+  await harness.settle();
+
+  assert.equal(harness.localWrites.length, writesBefore);
+  assert.deepEqual(harness.focusBroadcasts(), []);
+});
+
+test('showing nothing survives a rule being deleted elsewhere', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: [] }
+  });
+
+  await harness.settle();
+  harness.syncRules([TWO_RULES[1]]);
+  await harness.settle();
+
+  // An empty focus is a deliberate "show nothing", not a stale value
+  assert.deepEqual(plain(harness.localData.focusedRuleIds), []);
+  assert.deepEqual(harness.focusBroadcasts(), []);
+});
+
+test('a legacy filter naming a rule that is gone migrates to showing every rule', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: TWO_RULES,
+      // Points at a rule that was deleted on another device before this one
+      // had a chance to migrate
+      selectedRule: 'rule-gone'
+    }
+  });
+
+  await harness.settle();
+
+  assert.equal(harness.localData.focusedRuleIds, null);
 });
 
 test('changing the focus is broadcast to the tabs', async () => {
