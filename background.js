@@ -346,17 +346,49 @@ function normalizeCapturedRules(urlData) {
   return { ...rest, rules: rule ? [rule] : [] };
 }
 
-// Group a flat list of captured URLs back into the per tab lists.
+// The captures in a backup, whatever shape it was written in.
 //
-// The backup is written flat, which is also the shape it had before the lists
-// were split per tab, so a backup written by an older version restores without
-// needing to be converted.
-function restoreFoundUrls(urls) {
+// Three of them can arrive here. The current one keeps the distinct rules in a
+// table beside the captures, which point into it by position. Before that the
+// captures were a flat list, each carrying its own copy of every rule it
+// matched, and before that each carried a single `rule`. All three are
+// converted here, which is what lets everything downstream read one shape: the
+// others never meet it.
+//
+// Captures that shared a rule are handed the same object back, so the next
+// backup can write it once again.
+function readBackup(backup) {
+  if (Array.isArray(backup)) {
+    return backup.map(normalizeCapturedRules);
+  }
+
+  if (!backup || !Array.isArray(backup.captures)) {
+    return [];
+  }
+
+  const rules = Array.isArray(backup.rules) ? backup.rules : [];
+
+  return backup.captures.map(capture => {
+    const { ruleIndexes, ...rest } = capture;
+
+    return {
+      ...rest,
+      // A position with nothing behind it is dropped rather than carried
+      // through as a hole, so nothing downstream has to check a rule is there
+      // before reading its id.
+      rules: (Array.isArray(ruleIndexes) ? ruleIndexes : [])
+        .map(index => rules[index])
+        .filter(rule => rule)
+    };
+  });
+}
+
+// Group a backup back into the per tab lists
+function restoreFoundUrls(backup) {
   foundUrlsByTab.clear();
   foundUrlsTotal = 0;
 
-  urls.forEach(stored => {
-    const urlData = normalizeCapturedRules(stored);
+  readBackup(backup).forEach(urlData => {
     const existing = foundUrlsByTab.get(urlData.tabId) || [];
     existing.push(urlData);
     foundUrlsByTab.set(urlData.tabId, existing);
@@ -405,10 +437,10 @@ function enforceFoundUrlLimits() {
 async function initializeFoundUrls() {
   try {
     const result = await chrome.storage.session.get(['foundUrls']);
-    restoreFoundUrls(result.foundUrls || []);
+    restoreFoundUrls(result.foundUrls);
   } catch (error) {
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to initialize found URLs from storage:`, error);
-    restoreFoundUrls([]);
+    restoreFoundUrls(null);
   }
 }
 
@@ -423,6 +455,47 @@ const BACKUP_DELAY_MS = 1000;
 
 let backupTimer = null;
 
+// The captured URLs, ready to be handed to session storage.
+//
+// A capture keeps the rules it matched rather than their ids, so that editing a
+// rule later cannot change what an already captured URL says it matched. In
+// memory that costs almost nothing: every capture that matched the same rule
+// points at the same object. Writing does not work that way. Each of those
+// references is serialized as a full copy of the rule, so a URL matching eight
+// rules wrote eight rule objects, and this list holds up to MAX_TOTAL_FOUND_URLS
+// of them. That is how the ceiling on how many URLs are held stopped bounding
+// the size of the write.
+//
+// Writing the distinct rules once and pointing at them by position gives the
+// same list back for a fraction of the bytes. By position rather than by rule
+// id, because two captures can hold different snapshots under one id: a rule
+// edited in between is a different object, and telling those apart is the whole
+// reason for keeping a snapshot at all.
+function serializeFoundUrls(urls) {
+  const rules = [];
+  const positions = new Map();
+
+  const captures = urls.map(urlData => ({
+    url: urlData.url,
+    timestamp: urlData.timestamp,
+    tabId: urlData.tabId,
+    tabTitle: urlData.tabTitle,
+    ruleIndexes: urlData.rules.map(rule => {
+      let position = positions.get(rule);
+
+      if (position === undefined) {
+        position = rules.length;
+        rules.push(rule);
+        positions.set(rule, position);
+      }
+
+      return position;
+    })
+  }));
+
+  return { captures: captures, rules: rules };
+}
+
 // Back the cache up to session storage, coalescing anything that arrives while
 // a write is already waiting to go out
 function scheduleBackup() {
@@ -434,7 +507,7 @@ function scheduleBackup() {
     backupTimer = null;
     try {
       await chrome.storage.session.set({
-        foundUrls: allFoundUrls()
+        foundUrls: serializeFoundUrls(allFoundUrls())
       });
     } catch (error) {
       console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to backup URLs to storage:`, error);

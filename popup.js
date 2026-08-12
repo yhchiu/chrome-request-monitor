@@ -439,6 +439,20 @@ document.addEventListener('DOMContentLoaded', function() {
     saveFocusedRules(loadUrls);
   });
   
+  // The captures in a backup, or null when there are none to read.
+  //
+  // The background writes the distinct rules in a table beside the captures, so
+  // that a rule matched by many of them is only written once. Only the captures
+  // are of any interest here, and each one still carries its own tab and
+  // timestamp. An older version wrote the captures on their own.
+  function backupCaptures(backup) {
+    if (Array.isArray(backup)) {
+      return backup;
+    }
+
+    return backup && Array.isArray(backup.captures) ? backup.captures : null;
+  }
+
   // The captures this popup is showing, reduced to the numbers that say whether
   // they moved: how many there are and the span of their timestamps.
   //
@@ -486,15 +500,17 @@ document.addEventListener('DOMContentLoaded', function() {
   // background's decision and is deliberately not repeated: a copy of that here
   // could drift and start hiding captures, while a reload this fails to skip
   // only costs the work it was trying to save.
-  function hasVisibleChange(urls) {
-    // Not an array means the key was removed, which is what clearing does.
-    // There is nothing to compare against and the list has to be emptied.
-    if (!Array.isArray(urls)) {
+  function hasVisibleChange(backup) {
+    const captures = backupCaptures(backup);
+
+    // Nothing to compare against, which is what a removed key looks like, and
+    // removing it is how the captures are cleared. The list has to be emptied.
+    if (captures === null) {
       lastSeenCaptures = null;
       return true;
     }
 
-    const seen = summarizeCaptures(urls);
+    const seen = summarizeCaptures(captures);
     const changed = lastSeenCaptures === null ||
       seen.count !== lastSeenCaptures.count ||
       seen.oldest !== lastSeenCaptures.oldest ||

@@ -688,6 +688,42 @@ test('clearing the captures reloads even though nothing was added', () => {
   assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 1);
 });
 
+// The backup keeps the distinct rules in a table beside the captures, so a rule
+// matched by many of them is only written once. Reading the captures out of
+// that shape is what keeps the check above working.
+
+function backupOf(captures) {
+  return {
+    captures: captures.map(capture => ({
+      url: capture.url,
+      timestamp: capture.timestamp,
+      tabId: capture.tabId,
+      tabTitle: capture.tabTitle,
+      ruleIndexes: [0]
+    })),
+    rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
+  };
+}
+
+test('the check reads the captures out of the shape the background writes', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: [captureOn(1, 1)] });
+
+  popup.changeStorage(
+    { foundUrls: { newValue: backupOf([captureOn(1, 1), captureOn(2, 2)]) } },
+    'session'
+  );
+  const queriesBefore = popup.getFoundUrlsRequests().length;
+
+  popup.changeStorage(
+    { foundUrls: { newValue: backupOf([captureOn(1, 1), captureOn(2, 2), captureOn(2, 3)]) } },
+    'session'
+  );
+
+  // A shape this could not read would look like nothing to compare against,
+  // which reloads for every write and undoes the check entirely
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore);
+});
+
 test('a capture reloads while the active tab is still being looked up', () => {
   const popup = createPopupHarness({
     rules: THREE_RULES,

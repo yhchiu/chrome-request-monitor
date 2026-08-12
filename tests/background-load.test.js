@@ -320,6 +320,11 @@ function createHarness({
     releaseSessionReads() {
       sessionArea.release();
     },
+    // The backups written to session storage. Each keeps the distinct rules in
+    // a table beside the captures, which point into it by position.
+    backups() {
+      return sessionArea.writes.map(write => write.foundUrls);
+    },
     // Deliver a sync change the way Chrome does when another device edits
     syncRules(rules) {
       const oldValue = syncArea.data.urlRules;
@@ -716,7 +721,7 @@ test('many matches in a row are backed up in a single write', async () => {
   await harness.settle();
 
   assert.equal(harness.sessionArea.writes.length, 1);
-  assert.equal(harness.sessionArea.writes[0].foundUrls.length, 40);
+  assert.equal(harness.backups()[0].captures.length, 40);
 });
 
 test('a backup that has already gone out does not block the next one', async () => {
@@ -734,7 +739,7 @@ test('a backup that has already gone out does not block the next one', async () 
   await harness.settle();
 
   assert.equal(harness.sessionArea.writes.length, 2);
-  assert.equal(harness.sessionArea.writes[1].foundUrls.length, 2);
+  assert.equal(harness.backups()[1].captures.length, 2);
 });
 
 test('everything captured before the backup goes out is still in it', async () => {
@@ -748,7 +753,7 @@ test('everything captured before the backup goes out is still in it', async () =
   harness.runTimers();
   await harness.settle();
 
-  const written = harness.sessionArea.writes[0].foundUrls.map(entry => entry.url);
+  const written = harness.backups()[0].captures.map(capture => capture.url);
   assert.deepEqual(plain(written), [
     'https://a.example.com/one',
     'https://b.example.com/2',
@@ -793,7 +798,7 @@ test('capturing again after a clear schedules a fresh backup', async () => {
 
   assert.equal(harness.sessionArea.writes.length, 1);
   assert.deepEqual(
-    plain(harness.sessionArea.writes[0].foundUrls.map(entry => entry.url)),
+    plain(harness.backups()[0].captures.map(capture => capture.url)),
     ['https://a.example.com/two']
   );
 });
@@ -1114,7 +1119,7 @@ test('a backup written before the lists were split per tab still restores', asyn
   assert.equal((await harness.getFoundUrls({ currentTabOnly: false })).length, 3);
 });
 
-test('the backup is written flat so it can be read back', async () => {
+test('the backup carries the tab each URL was captured in', async () => {
   const harness = createHarness({ sync: { urlRules: RULES } });
   await harness.settle();
 
@@ -1124,9 +1129,134 @@ test('the backup is written flat so it can be read back', async () => {
   harness.runTimers();
   await harness.settle();
 
-  const written = harness.sessionArea.writes[0].foundUrls;
-  assert.equal(written.length, 2);
-  assert.deepEqual(plain(written.map(entry => entry.tabId)), [2, 3]);
+  const backup = harness.backups()[0];
+  assert.equal(backup.captures.length, 2);
+  assert.deepEqual(plain(backup.captures.map(capture => capture.tabId)), [2, 3]);
+});
+
+// A capture keeps the rules it matched rather than their ids, so that editing a
+// rule later cannot change what an already captured URL says it matched. In
+// memory every capture that matched the same rule points at one object, but
+// writing serializes each of those references as a full copy. That is how the
+// ceiling on how many URLs are held stopped bounding the size of the write.
+
+test('the backup writes a rule once however many captures matched it', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  for (let i = 0; i < 40; i += 1) {
+    await harness.request(`https://a.example.com/${i}`, 2);
+  }
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  const backup = harness.backups()[0];
+
+  assert.equal(backup.captures.length, 40);
+  assert.equal(backup.rules.length, 1);
+  assert.equal(backup.rules[0].id, 'rule-a');
+  assert.deepEqual(plain(backup.captures[0].ruleIndexes), [0]);
+});
+
+test('a URL that matched several rules points at each of them', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/b.example.com/42', 2);
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  const backup = harness.backups()[0];
+  assert.deepEqual(plain(backup.rules.map(rule => rule.id)), ['rule-a', 'rule-b']);
+  assert.deepEqual(plain(backup.captures[0].ruleIndexes), [0, 1]);
+});
+
+test('a rule edited between two captures is kept as both snapshots', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/before', 2);
+  await harness.settle();
+
+  // Renamed on another device, which makes it a different object
+  harness.syncRules([
+    { id: 'rule-a', name: 'Renamed', type: 'contains', value: 'a.example.com' },
+    RULES[1]
+  ]);
+  await harness.settle();
+
+  await harness.request('https://a.example.com/after', 2);
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  const backup = harness.backups()[0];
+
+  // Pointing at the rules by position rather than by id is what keeps these
+  // apart. Both are rule-a, and the earlier capture still says what it matched
+  // at the time it matched it.
+  assert.equal(backup.rules.length, 2);
+  assert.deepEqual(plain(backup.rules.map(rule => rule.name)), ['A', 'Renamed']);
+  assert.deepEqual(
+    plain(backup.captures.map(capture => plain(capture.ruleIndexes))),
+    [[0], [1]]
+  );
+});
+
+test('a backup written in the current shape restores with its rules', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/b.example.com/42', 2);
+  await harness.request('https://a.example.com/plain', 3);
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  // What a Service Worker restart reads back
+  const restarted = createHarness({
+    sync: { urlRules: RULES },
+    session: { foundUrls: harness.backups()[0] }
+  });
+  await restarted.settle();
+
+  const urls = await restarted.getFoundUrls({ currentTabOnly: false });
+  assert.deepEqual(plain(urls.map(entry => entry.url)), [
+    'https://a.example.com/b.example.com/42',
+    'https://a.example.com/plain'
+  ]);
+  assert.deepEqual(plain(urls[0].rules.map(rule => rule.id)), ['rule-a', 'rule-b']);
+  assert.deepEqual(plain(urls[1].rules.map(rule => rule.id)), ['rule-a']);
+});
+
+test('a restored capture is written back with its rule still shared', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 2);
+  await harness.request('https://a.example.com/two', 2);
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  const restarted = createHarness({
+    sync: { urlRules: RULES },
+    session: { foundUrls: harness.backups()[0] }
+  });
+  await restarted.settle();
+
+  await restarted.request('https://a.example.com/three', 2);
+  await restarted.settle();
+  restarted.runTimers();
+  await restarted.settle();
+
+  // Handing the captures the same rule object back is what stops a restart
+  // turning one shared rule into a copy per capture
+  const backup = restarted.backups()[0];
+  assert.equal(backup.captures.length, 3);
+  assert.equal(backup.rules.length, 1);
 });
 
 // A request is what wakes the Service Worker, so it can arrive before the
