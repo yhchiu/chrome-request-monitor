@@ -273,6 +273,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Name every rule a captured URL matched. A URL can match more than one, and
+  // naming only the first left the row claiming a rule the user may not even
+  // be showing.
+  function describeMatchedRules(urlData) {
+    const rules = Array.isArray(urlData.rules) ? urlData.rules : [];
+    return rules.map(rule => rule.name || rule.type).join(', ');
+  }
+
   // Display URLs in the list
   function displayUrls(urls) {
     urlList.innerHTML = '';
@@ -299,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
       urlItem.innerHTML = `
         <div class="tab-title" title="${escapeHtml(tabTitle)}" data-tab-prefix="${escapeHtml(tabPrefix)}">${escapeHtml(displayTitle)}</div>
         <div class="url-meta">
-          <span>${getMessage('rule')}: ${escapeHtml(urlData.rule.name || urlData.rule.type)}</span>
+          <span>${getMessage('rule')}: ${escapeHtml(describeMatchedRules(urlData))}</span>
           <span>${timeString}</span>
         </div>
         <div class="url-text">${escapeHtml(urlData.url)}</div>

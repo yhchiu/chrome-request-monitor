@@ -329,6 +329,23 @@ async function migrateStoredData() {
   await initializeRules();
 }
 
+// Bring a restored capture up to the current shape.
+//
+// A capture written before a URL could keep more than one rule carries a single
+// `rule` instead of a `rules` list. Converting on the way in is what lets
+// everything downstream read `rules` and nothing else: the two shapes never
+// meet outside this function.
+function normalizeCapturedRules(urlData) {
+  if (Array.isArray(urlData.rules)) {
+    return urlData;
+  }
+
+  // The old key is dropped rather than carried along, so the next backup stops
+  // writing a field nothing reads.
+  const { rule, ...rest } = urlData;
+  return { ...rest, rules: rule ? [rule] : [] };
+}
+
 // Group a flat list of captured URLs back into the per tab lists.
 //
 // The backup is written flat, which is also the shape it had before the lists
@@ -338,7 +355,8 @@ function restoreFoundUrls(urls) {
   foundUrlsByTab.clear();
   foundUrlsTotal = 0;
 
-  urls.forEach(urlData => {
+  urls.forEach(stored => {
+    const urlData = normalizeCapturedRules(stored);
     const existing = foundUrlsByTab.get(urlData.tabId) || [];
     existing.push(urlData);
     foundUrlsByTab.set(urlData.tabId, existing);
@@ -581,46 +599,67 @@ async function handleBeforeRequest(details) {
 
   if (compiledRules.length === 0) return;
 
-  // Check if URL matches any rule (always check all rules and filter later in display)
-  const matched = compiledRules.find(entry => entry.matches(details.url));
+  // Every rule the URL matches, not just the first one.
+  //
+  // Only the first used to be kept, and the capture carried that rule alone. A
+  // URL commonly matches several rules, so whenever the first of them was one
+  // the user had unticked, the capture was filtered out of the popup and never
+  // shown as an overlay, however many of the other rules it matched were
+  // ticked. Which rule came first is just the order of the rules list, so the
+  // same request appeared or vanished depending on how the list was sorted.
+  //
+  // Collected in a plain loop that allocates nothing until something matches.
+  // Most requests match no rule at all and this runs on every one of them.
+  let matchedRules = null;
 
-  if (matched) {
-    const matchedRule = matched.rule;
-    // Get tab information to include title and determine if we can message this tab
-    const tabInfo = await getTabInfo(details.tabId);
-    const tabTitle = (tabInfo && tabInfo.title) || chrome.i18n.getMessage('unknown') || 'Unknown';
-    const tabUrl = (tabInfo && tabInfo.url) || '';
-    // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
-    const canSendOverlay = /^https?:\/\//i.test(tabUrl);
-
-    const urlData = {
-      url: details.url,
-      timestamp: Date.now(),
-      rule: matchedRule,
-      tabId: details.tabId,
-      tabTitle: tabTitle
-    };
-    
-    // Store the found URL using hybrid caching
-    addFoundUrl(urlData);
-    
-    // Send message to content script to show overlay (only when eligible).
-    // A rule outside the current focus is still recorded above, it just does
-    // not interrupt the page.
-    if (isRuleFocused(matchedRule.id) &&
-        typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
-      try {
-        await chrome.tabs.sendMessage(details.tabId, {
-          action: 'showUrlOverlay',
-          data: urlData
-        });
-        // Only once the send lands. A rejection means no content script took
-        // it, so there is no overlay there to take away later.
-        rememberOverlayTab(details.tabId);
-      } catch (error) {
-        // Content script may not be injected yet or page is restricted; skip logging as error to reduce noise
-        console.warn(`[${chrome.i18n.getMessage('extensionName')}] Skipped sending overlay to this tab:`, { tabId: details.tabId, url: tabUrl, reason: error?.message });
+  for (let i = 0; i < compiledRules.length; i += 1) {
+    if (compiledRules[i].matches(details.url)) {
+      if (matchedRules === null) {
+        matchedRules = [];
       }
+      matchedRules.push(compiledRules[i].rule);
+    }
+  }
+
+  if (matchedRules === null) {
+    return;
+  }
+
+  // Get tab information to include title and determine if we can message this tab
+  const tabInfo = await getTabInfo(details.tabId);
+  const tabTitle = (tabInfo && tabInfo.title) || chrome.i18n.getMessage('unknown') || 'Unknown';
+  const tabUrl = (tabInfo && tabInfo.url) || '';
+  // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
+  const canSendOverlay = /^https?:\/\//i.test(tabUrl);
+
+  const urlData = {
+    url: details.url,
+    timestamp: Date.now(),
+    rules: matchedRules,
+    tabId: details.tabId,
+    tabTitle: tabTitle
+  };
+
+  // Store the found URL using hybrid caching
+  addFoundUrl(urlData);
+
+  // Send message to content script to show overlay (only when eligible).
+  // Rules outside the current focus are still recorded above, they just do not
+  // interrupt the page. One ticked rule is enough: the user asked to see what
+  // that rule matches, and this URL is one of the things it matched.
+  if (matchedRules.some(rule => isRuleFocused(rule.id)) &&
+      typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
+    try {
+      await chrome.tabs.sendMessage(details.tabId, {
+        action: 'showUrlOverlay',
+        data: urlData
+      });
+      // Only once the send lands. A rejection means no content script took
+      // it, so there is no overlay there to take away later.
+      rememberOverlayTab(details.tabId);
+    } catch (error) {
+      // Content script may not be injected yet or page is restricted; skip logging as error to reduce noise
+      console.warn(`[${chrome.i18n.getMessage('extensionName')}] Skipped sending overlay to this tab:`, { tabId: details.tabId, url: tabUrl, reason: error?.message });
     }
   }
 }
@@ -739,12 +778,17 @@ async function handleGetFoundUrls(request, sendResponse) {
       filteredUrls = allFoundUrls();
     }
 
-    // Keep only the focused rules. Each stored URL keeps the rule it matched,
-    // so the id is enough on its own: no lookup against the current rules, and
-    // editing a rule later does not hide the URLs it already matched.
+    // Keep only the focused rules. Each stored URL keeps the rules it matched,
+    // so the ids are enough on their own: no lookup against the current rules,
+    // and editing a rule later does not hide the URLs it already matched.
+    //
+    // One ticked rule is enough to keep the URL, which is what stops a match on
+    // an unticked rule hiding a URL the user asked to see through another one.
+    // Every capture carries a rules list, restored ones included, so there is
+    // no missing field to guard against here.
     if (focusedRuleIds !== null) {
       filteredUrls = filteredUrls.filter(
-        urlData => urlData.rule && focusedRuleIds.includes(urlData.rule.id)
+        urlData => urlData.rules.some(rule => focusedRuleIds.includes(rule.id))
       );
     }
 

@@ -932,7 +932,7 @@ test('rules backfilled with ids by the migration are the ones matched against', 
 
   const urls = await harness.getFoundUrls();
   assert.equal(urls.length, 1);
-  assert.ok(urls[0].rule.id, 'the captured rule should carry an id');
+  assert.ok(urls[0].rules[0].id, 'the captured rule should carry an id');
 });
 
 // The captured URLs used to share one list trimmed to the storage limit, so a

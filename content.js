@@ -135,7 +135,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Drop overlays whose rule is no longer being shown. New overlays are already
+// The rules a captured URL matched. A URL can match more than one, and the
+// background sends all of them.
+function matchedRules(urlData) {
+  return Array.isArray(urlData.rules) ? urlData.rules : [];
+}
+
+// How those rules read on screen. Naming only one of several left the user
+// guessing which of their rules had actually fired.
+function describeRules(rules) {
+  return rules
+    .map(rule => `${rule.name || rule.type} - ${rule.value}`)
+    .join(', ');
+}
+
+// The rules an overlay was built from. Stored as JSON rather than a joined
+// string because a rule id comes from settings the user can import, so nothing
+// here can assume it is free of whatever separator we picked.
+function overlayRuleIds(overlay) {
+  try {
+    const ruleIds = JSON.parse(overlay.dataset.ruleIds || '[]');
+    return Array.isArray(ruleIds) ? ruleIds : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+// Drop overlays whose rules are no longer being shown. New overlays are already
 // filtered in the background, so this only clears what is still on screen when
 // the user changes what they are looking at.
 function removeUnfocusedOverlays(focusedRuleIds) {
@@ -146,7 +172,12 @@ function removeUnfocusedOverlays(focusedRuleIds) {
 
   // Copy first: removeOverlay mutates activeOverlays as it goes
   activeOverlays.slice().forEach(overlay => {
-    if (!focusedRuleIds.includes(overlay.dataset.ruleId)) {
+    // A URL can match several rules, so the overlay stays for as long as the
+    // user is still showing any one of them. Removing it as soon as a single
+    // rule was unticked would take away an overlay they asked to see.
+    const stillShown = overlayRuleIds(overlay).some(id => focusedRuleIds.includes(id));
+
+    if (!stillShown) {
       removeOverlay(overlay);
     }
   });
@@ -206,10 +237,11 @@ function showUrlOverlay(urlData) {
   // Create individual overlay box
   const overlay = document.createElement('div');
   overlay.className = 'url-monitor-overlay';
-  // Remembered so the overlay can be taken away when its rule stops being shown
-  if (urlData.rule && urlData.rule.id) {
-    overlay.dataset.ruleId = urlData.rule.id;
-  }
+  // Remembered so the overlay can be taken away once none of its rules are
+  // being shown any more
+  overlay.dataset.ruleIds = JSON.stringify(
+    matchedRules(urlData).map(rule => rule.id).filter(id => id)
+  );
   overlay.style.cssText = `
     background: rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95});
     color: #fff;
@@ -266,7 +298,7 @@ function showUrlOverlay(urlData) {
     </div>
     <div style="margin-bottom: 8px;">
       <div style="color: #98c379; font-size: 12px;">
-        <span data-i18n="rule">Rule</span>: ${escapeHtml(urlData.rule.name || urlData.rule.type)} - ${escapeHtml(urlData.rule.value)}
+        <span data-i18n="rule">Rule</span>: ${escapeHtml(describeRules(matchedRules(urlData)))}
       </div>
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">

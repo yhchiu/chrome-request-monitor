@@ -213,10 +213,19 @@ function createBackgroundHarness({
     startRequest(url, tabId = 1) {
       return requestListener({ url, tabId });
     },
+    // Every rule id the overlays were sent for, flattened. Array.from also
+    // copies each list out of the VM's realm so deepEqual accepts it.
     overlayMessages() {
       return tabMessages
         .filter(entry => entry.message.action === 'showUrlOverlay')
-        .map(entry => entry.message.data.rule.id);
+        .flatMap(entry => Array.from(entry.message.data.rules, rule => rule.id));
+    },
+    // The same ids kept one list per overlay, for a URL that matched several
+    // rules and so carries more than one
+    overlayRuleIdSets() {
+      return tabMessages
+        .filter(entry => entry.message.action === 'showUrlOverlay')
+        .map(entry => Array.from(entry.message.data.rules, rule => rule.id));
     },
     focusBroadcasts() {
       return tabMessages
@@ -273,9 +282,9 @@ test('a legacy index filter that no longer resolves ends up showing every rule',
 });
 
 const CAPTURED_URLS = [
-  { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
-  { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } },
-  { url: 'https://c.example.com/1', timestamp: 3, tabId: 1, rule: { id: 'rule-c' } }
+  { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rules: [{ id: 'rule-a' }] },
+  { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rules: [{ id: 'rule-b' }] },
+  { url: 'https://c.example.com/1', timestamp: 3, tabId: 1, rules: [{ id: 'rule-c' }] }
 ];
 
 test('a null focus shows every rule', async () => {
@@ -431,7 +440,101 @@ test('a rule outside the focus is still captured', async () => {
   // Showing every rule again reveals what was captured quietly.
   await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: null });
   const urls = await harness.getFoundUrls();
-  assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-b']);
+  assert.deepEqual(plain(urls.map(entry => entry.rules[0].id)), ['rule-b']);
+});
+
+// A URL frequently matches more than one rule. Only the first match used to be
+// kept, so whether the user saw the request came down to which of the rules it
+// matched happened to sit earlier in their list.
+const OVERLAPPING_RULES = [
+  { id: 'rule-1', name: 'One', type: 'contains', value: 'api.example.com' },
+  { id: 'rule-2', name: 'Two', type: 'contains', value: '/v1/users' }
+];
+
+const OVERLAPPING_URL = 'https://api.example.com/v1/users';
+
+test('a capture keeps every rule its URL matched', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: OVERLAPPING_RULES },
+    local: { focusedRuleIds: null }
+  });
+
+  await harness.settle();
+  await harness.request(OVERLAPPING_URL);
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls();
+  assert.deepEqual(plain(urls[0].rules.map(rule => rule.id)), ['rule-1', 'rule-2']);
+  assert.deepEqual(harness.overlayRuleIdSets(), [['rule-1', 'rule-2']]);
+});
+
+test('a URL is shown when a later matching rule is the focused one', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: OVERLAPPING_RULES },
+    local: { focusedRuleIds: ['rule-2'] }
+  });
+
+  await harness.settle();
+  await harness.request(OVERLAPPING_URL);
+  await harness.settle();
+
+  // Rule 1 matches first and is not focused, which used to hide the URL
+  // altogether even though rule 2 was ticked.
+  assert.deepEqual(harness.overlayRuleIdSets(), [['rule-1', 'rule-2']]);
+  assert.deepEqual(plain((await harness.getFoundUrls()).map(entry => entry.url)), [OVERLAPPING_URL]);
+});
+
+test('a URL is shown when an earlier matching rule is the focused one', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: OVERLAPPING_RULES },
+    local: { focusedRuleIds: ['rule-1'] }
+  });
+
+  await harness.settle();
+  await harness.request(OVERLAPPING_URL);
+  await harness.settle();
+
+  // The same answer whichever of the two is ticked: the order of the rules
+  // list is not something the user should have to think about.
+  assert.deepEqual(harness.overlayRuleIdSets(), [['rule-1', 'rule-2']]);
+  assert.deepEqual(plain((await harness.getFoundUrls()).map(entry => entry.url)), [OVERLAPPING_URL]);
+});
+
+test('a URL matching only unfocused rules stays hidden', async () => {
+  const harness = createBackgroundHarness({
+    sync: {
+      urlRules: [...OVERLAPPING_RULES, { id: 'rule-3', name: 'Three', type: 'contains', value: 'other.example.com' }]
+    },
+    local: { focusedRuleIds: ['rule-3'] }
+  });
+
+  await harness.settle();
+  await harness.request(OVERLAPPING_URL);
+  await harness.settle();
+
+  assert.deepEqual(harness.overlayMessages(), []);
+  assert.deepEqual(plain(await harness.getFoundUrls()), []);
+});
+
+test('a capture stored before a URL could keep several rules still filters', async () => {
+  const harness = createBackgroundHarness({
+    local: { focusedRuleIds: ['rule-a'] },
+    // The single rule shape an older version wrote
+    session: {
+      foundUrls: [
+        { url: 'https://a.example.com/1', timestamp: 1, tabId: 1, rule: { id: 'rule-a' } },
+        { url: 'https://b.example.com/1', timestamp: 2, tabId: 1, rule: { id: 'rule-b' } }
+      ]
+    }
+  });
+
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls();
+  assert.deepEqual(plain(urls.map(entry => entry.url)), ['https://a.example.com/1']);
+  // Converted on the way in, so nothing downstream sees the old shape
+  assert.deepEqual(plain(urls[0].rules.map(rule => rule.id)), ['rule-a']);
+  assert.equal('rule' in urls[0], false);
 });
 
 // A request is what wakes the Service Worker, so it can arrive before the
@@ -491,7 +594,7 @@ test('a query that arrives before the focus is loaded waits for it', async () =>
   harness.releaseLocalReads();
   const urls = await pending;
 
-  assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-b']);
+  assert.deepEqual(plain(urls.map(entry => entry.rules[0].id)), ['rule-b']);
 });
 
 test('a URL captured before the migration finishes still carries a rule id', async () => {
@@ -511,7 +614,7 @@ test('a URL captured before the migration finishes still carries a rule id', asy
   // Without an id the captured URL could never be matched against a focus
   const urls = await harness.getFoundUrls();
   assert.equal(urls.length, 1);
-  assert.ok(urls[0].rule.id, 'the captured rule should carry an id');
+  assert.ok(urls[0].rules[0].id, 'the captured rule should carry an id');
 });
 
 // The monitor switch defaults to on, so a request that beats the stored setting
@@ -550,7 +653,7 @@ test('a request that arrives before the settings are loaded is captured while mo
 
   // Waiting must not cost the request: it is only delayed, never dropped
   const urls = await harness.getFoundUrls();
-  assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-a']);
+  assert.deepEqual(plain(urls.map(entry => entry.rules[0].id)), ['rule-a']);
 });
 
 test('monitoring turned off stops requests being captured', async () => {

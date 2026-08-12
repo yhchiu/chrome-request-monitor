@@ -388,6 +388,26 @@ test('turning monitoring back on restores the selection', () => {
   assert.deepEqual(popup.getFocusUpdates(), []);
 });
 
+test('a row names every rule the URL matched', () => {
+  const popup = openPopup({
+    rules: THREE_RULES,
+    foundUrls: [{
+      url: 'https://api.example.com/v1/users',
+      timestamp: 1,
+      tabId: 1,
+      tabTitle: 'A tab',
+      rules: [
+        { id: 'rule-a', name: 'One', type: 'contains' },
+        { id: 'rule-b', name: 'Two', type: 'contains' }
+      ]
+    }]
+  });
+
+  // Naming only the first left the row claiming a rule the user may not even
+  // be showing, which read as the wrong rule having fired.
+  assert.ok(popup.urlListHtml().includes('One, Two'));
+});
+
 // The URL list is built as a string and assigned through innerHTML. The URL is
 // whatever a page asked the network for, and the rule name can come from an
 // imported settings file.
@@ -400,7 +420,7 @@ test('a URL that looks like markup is escaped into the list', () => {
       timestamp: 1,
       tabId: 1,
       tabTitle: 'A tab',
-      rule: { id: 'rule-a', name: 'A', type: 'contains' }
+      rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
     }]
   });
 
@@ -417,7 +437,7 @@ test('a rule name that looks like markup is escaped into the list', () => {
       timestamp: 1,
       tabId: 1,
       tabTitle: 'A tab',
-      rule: { id: 'rule-a', name: '<script>alert(1)</script>', type: 'contains' }
+      rules: [{ id: 'rule-a', name: '<script>alert(1)</script>', type: 'contains' }]
     }]
   });
 

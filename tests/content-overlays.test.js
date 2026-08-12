@@ -204,12 +204,22 @@ function createContentHarness({ storedOverlaySettings } = {}) {
       return body.children[0].style;
     },
     showUrl(ruleId, url) {
+      this.showUrlForRules([ruleId], url || `https://example.com/${ruleId}`);
+    },
+    // A URL can match several rules at once, and the background sends all of
+    // them together in one overlay
+    showUrlForRules(ruleIds, url) {
       this.send({
         action: 'showUrlOverlay',
         data: {
-          url: url || `https://example.com/${ruleId}`,
+          url: url || `https://example.com/${ruleIds.join('-')}`,
           timestamp: 1,
-          rule: { id: ruleId, name: ruleId, type: 'contains', value: ruleId }
+          rules: ruleIds.map(ruleId => ({
+            id: ruleId,
+            name: ruleId,
+            type: 'contains',
+            value: ruleId
+          }))
         }
       });
     },
@@ -218,10 +228,17 @@ function createContentHarness({ storedOverlaySettings } = {}) {
       const container = body.children[0];
       return container.children[container.children.length - 1].innerHTML;
     },
-    // Rule ids of the overlays currently on the page
+    // Rule ids of the overlays currently on the page, flattened
     visibleRuleIds() {
+      return this.visibleRuleIdSets().flat();
+    },
+    // The same ids kept one list per overlay, for overlays built from a URL
+    // that matched several rules
+    visibleRuleIdSets() {
       const container = body.children[0];
-      return container ? container.children.map(overlay => overlay.dataset.ruleId) : [];
+      return container
+        ? container.children.map(overlay => JSON.parse(overlay.dataset.ruleIds))
+        : [];
     },
     hasContainer() {
       return body.children.length > 0;
@@ -259,6 +276,46 @@ test('several focused rules keep their overlays', () => {
   content.send({ action: 'updateFocusedRules', focusedRuleIds: ['rule-a', 'rule-c'] });
 
   assert.deepEqual(content.visibleRuleIds(), ['rule-a', 'rule-c']);
+});
+
+test('an overlay remembers every rule its URL matched', () => {
+  const content = createContentHarness();
+
+  content.showUrlForRules(['rule-a', 'rule-b']);
+
+  assert.deepEqual(content.visibleRuleIdSets(), [['rule-a', 'rule-b']]);
+});
+
+test('an overlay stays while any of its rules is still shown', () => {
+  const content = createContentHarness();
+
+  content.showUrlForRules(['rule-a', 'rule-b']);
+
+  // Rule A has been unticked, but the user is still showing rule B and this
+  // URL matched that too.
+  content.send({ action: 'updateFocusedRules', focusedRuleIds: ['rule-b'] });
+
+  assert.deepEqual(content.visibleRuleIdSets(), [['rule-a', 'rule-b']]);
+});
+
+test('an overlay goes once none of its rules are shown', () => {
+  const content = createContentHarness();
+
+  content.showUrlForRules(['rule-a', 'rule-b']);
+
+  content.send({ action: 'updateFocusedRules', focusedRuleIds: ['rule-c'] });
+
+  assert.deepEqual(content.visibleRuleIdSets(), []);
+});
+
+test('an overlay names every rule its URL matched', () => {
+  const content = createContentHarness();
+
+  content.showUrlForRules(['rule-a', 'rule-b']);
+
+  const overlay = content.lastOverlayHtml();
+  assert.ok(overlay.includes('rule-a - rule-a'), 'the first rule should be named');
+  assert.ok(overlay.includes('rule-b - rule-b'), 'the second rule should be named');
 });
 
 test('showing every rule again takes nothing away', () => {
@@ -424,12 +481,12 @@ test('a rule name and value that look like markup are escaped into the overlay',
     data: {
       url: 'https://example.com/one',
       timestamp: 1,
-      rule: {
+      rules: [{
         id: 'rule-a',
         name: '<script>alert(1)</script>',
         type: 'contains',
         value: '"><img src=x onerror=alert(2)>'
-      }
+      }]
     }
   });
 
