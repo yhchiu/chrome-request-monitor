@@ -130,7 +130,15 @@ function createBackgroundHarness({
         return Promise.resolve();
       },
       // The tab title cache keeps itself current from these
-      onUpdated: { addListener() {} },
+      onUpdated: {
+        // Chrome supports no filter on this one and throws for the extra
+        // argument, so a stub that took one would hide a broken registration
+        addListener(listener, filter) {
+          if (filter !== undefined) {
+            throw new TypeError('This event does not support filters');
+          }
+        }
+      },
       onRemoved: { addListener() {} }
     },
     webRequest: {

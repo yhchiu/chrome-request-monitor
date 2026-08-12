@@ -113,7 +113,6 @@ function createHarness({
   const timers = [];
 
   let tabUpdatedListener;
-  let tabUpdatedFilter;
   let tabRemovedListener;
   let activeTabId = 1;
 
@@ -190,9 +189,14 @@ function createHarness({
         });
       },
       onUpdated: {
+        // tabs.onUpdated takes no filter in Chrome. Accepting one here is what
+        // let a filtered registration pass the suite while it threw on load in
+        // the browser, so the stub refuses it the way Chrome does.
         addListener(listener, filter) {
+          if (filter !== undefined) {
+            throw new TypeError('This event does not support filters');
+          }
           tabUpdatedListener = listener;
-          tabUpdatedFilter = filter;
         }
       },
       onRemoved: {
@@ -276,12 +280,13 @@ function createHarness({
       unreachableTabIds = tabIds;
     },
     // Report a tab the way Chrome does as it loads and its title settles
-    updateTab(tab) {
-      tabUpdatedListener(tab.id, { title: tab.title }, tab);
+    updateTab(tab, changeInfo = { title: tab.title }) {
+      tabUpdatedListener(tab.id, changeInfo, tab);
     },
-    // Which tab updates the listener asked Chrome to deliver
-    tabUpdateFilter() {
-      return tabUpdatedFilter;
+    // Whether anything is registered for tab updates at all. A throw in
+    // registration would leave nothing here and stop the titles being kept.
+    hasTabUpdateListener() {
+      return Boolean(tabUpdatedListener);
     },
     removeTab(tabId) {
       tabRemovedListener(tabId, { windowId: 1, isWindowClosing: false });
@@ -892,13 +897,58 @@ test('a title that changes as the page loads is the one captured', async () => {
 // capture anything, so its size followed the number of tabs the user had open
 // rather than the number this extension has any use for.
 
-test('the tab listener asks only for the properties the cache reads', async () => {
+test('the tab listener registers, since a filter would throw and take the rest down', async () => {
   const harness = createHarness({ sync: { urlRules: RULES } });
   await harness.settle();
 
-  // Unfiltered, every change to every tab is a message carrying a whole tab
-  // across, and only these two are ever read out of it
-  assert.deepEqual(plain(harness.tabUpdateFilter().properties), ['title', 'url']);
+  // tabs.onUpdated supports no filter. Registering with one throws while the
+  // Service Worker is being evaluated, which leaves every listener below it,
+  // the request listener included, never registered at all.
+  assert.ok(harness.hasTabUpdateListener(), 'tab updates should be listened for');
+  assert.ok(harness.hasRequestListener(), 'requests should still be listened for');
+});
+
+test('a change that carries neither title nor url is left alone', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.updateTab({ id: 7, title: 'Reported', url: 'https://reported.example.com/' });
+
+  // Only these two are ever read out of a tab, so the rest are dropped rather
+  // than written back over what is held
+  for (let tabId = 100; tabId < 400; tabId += 1) {
+    harness.updateTab(
+      { id: tabId, title: `tab ${tabId}`, url: `https://example.com/${tabId}` },
+      { status: 'loading' }
+    );
+  }
+
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  // Idle tabs reporting that they started loading should not have pushed the
+  // one tab worth remembering out of the cache
+  assert.deepEqual(plain(harness.tabGets), []);
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls[0].tabTitle, 'Reported');
+});
+
+test('a url change with no title still updates what is held', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  // Navigating within a page reports the url on its own
+  harness.updateTab(
+    { id: 7, title: 'Moved', url: 'https://reported.example.com/next' },
+    { url: 'https://reported.example.com/next' }
+  );
+
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.tabGets), []);
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls[0].tabTitle, 'Moved');
 });
 
 test('the tab titles kept are bounded rather than one per tab open', async () => {

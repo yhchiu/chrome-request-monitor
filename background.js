@@ -665,17 +665,24 @@ async function getTabInfo(tabId) {
 // Keep the cache current. A title changes as a page loads, and the entry has to
 // go when the tab does rather than being left behind.
 //
-// Narrowed to the two properties rememberTab actually reads. Unfiltered, Chrome
-// delivers an event for every change to every tab, loading status, favicon,
-// audio, pinning and the rest included, and each one is a message carrying a
-// whole tab across to a Service Worker it may have to start first. How much
-// this listener can do with them does not grow with the number of tabs open.
-// The number of messages does.
-const TAB_UPDATE_FILTER = { properties: ['title', 'url'] };
-
+// Chrome delivers an event for every change to every tab, loading status,
+// favicon, audio, pinning and the rest included. Only two of those properties
+// are ever read out of it, so the rest are dropped here. Passing a filter to
+// addListener would have Chrome drop them instead, but onUpdated takes no
+// filter: Chrome throws "This event does not support filters" for the extra
+// argument, and since this runs while the Service Worker is being evaluated
+// that throw took every listener registered below it down with it.
+//
+// Dropping them here still matters. The cache holds the tabs this extension
+// captures from, and letting a tab that merely started loading in on that would
+// let a profile full of idle tabs evict the entries worth keeping.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.title === undefined && changeInfo.url === undefined) {
+    return;
+  }
+
   rememberTab(tab);
-}, TAB_UPDATE_FILTER);
+});
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabInfoCache.delete(tabId);
