@@ -67,6 +67,8 @@ function createPopupHarness({
   rules = [],
   focusedRuleIds = null,
   deferRules = false,
+  deferActiveTab = false,
+  activeTabId = 1,
   foundUrls = []
 } = {}) {
   const domReadyListeners = [];
@@ -74,6 +76,7 @@ function createPopupHarness({
   const messages = [];
   let monitorSettingsCallback;
   let rulesCallback;
+  let activeTabCallback;
   let storageListener;
   // What the background would answer with, so a test can capture something new
   // while the popup is open
@@ -105,6 +108,18 @@ function createPopupHarness({
         if (callback) {
           callback(message.action === 'getFoundUrls' ? { urls: capturedUrls } : { success: true });
         }
+      }
+    },
+    tabs: {
+      // The tab the popup opened over. Held back when a test wants to see what
+      // happens before the answer is back.
+      query(queryInfo, callback) {
+        if (deferActiveTab) {
+          activeTabCallback = callback;
+          return;
+        }
+
+        callback(activeTabId === null ? [] : [{ id: activeTabId }]);
       }
     },
     storage: {
@@ -219,6 +234,16 @@ function createPopupHarness({
     resolveRules(loadedRules) {
       assert.ok(rulesCallback);
       rulesCallback({ urlRules: loadedRules });
+    },
+    resolveActiveTab(tabId) {
+      assert.ok(activeTabCallback, 'the active tab was not asked for');
+      activeTabCallback([{ id: tabId }]);
+    },
+    // Untick the current tab filter the way a click would
+    setCurrentTabOnly(isOn) {
+      const toggle = document.getElementById('tabFilterToggle');
+      toggle.checked = isOn;
+      toggle.dispatch('change');
     },
     // Flip the monitor switch the way a click would
     setMonitoring(isEnabled) {
@@ -584,6 +609,111 @@ test('a change to another session key is ignored', () => {
   popup.changeStorage({ somethingElse: { newValue: 1 } }, 'session');
 
   assert.equal(popup.getFoundUrlsRequests().length, 1);
+});
+
+// The backup holds every tab's captures, so it is written whatever the tab
+// being watched is doing. On a profile with many tabs open that is about once a
+// second, and reloading for all of them rebuilt the same rows over and over.
+
+function captureOn(tabId, timestamp) {
+  return {
+    url: `https://api.example.com/tab-${tabId}/${timestamp}`,
+    timestamp: timestamp,
+    tabId: tabId,
+    tabTitle: `Tab ${tabId}`,
+    rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
+  };
+}
+
+// The first write after the popup opens has nothing to be compared against, so
+// it always reloads. Sending one gives the comparison something to work with.
+function primeCaptures(popup) {
+  popup.capture([captureOn(1, 1), captureOn(2, 2)]);
+  return popup.getFoundUrlsRequests().length;
+}
+
+test('a capture on another tab leaves the list alone', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: [captureOn(1, 1)] });
+  const queriesBefore = primeCaptures(popup);
+
+  popup.capture([captureOn(1, 1), captureOn(2, 2), captureOn(2, 3)]);
+
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore);
+});
+
+test('a capture on the tab being watched still reloads', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: [captureOn(1, 1)] });
+  const queriesBefore = primeCaptures(popup);
+
+  popup.capture([captureOn(1, 1), captureOn(2, 2), captureOn(1, 3)]);
+
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 1);
+});
+
+test('a capture on another tab reloads when every tab is being shown', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: [captureOn(1, 1)] });
+
+  popup.setCurrentTabOnly(false);
+  const queriesBefore = primeCaptures(popup);
+
+  // Nothing is being filtered out now, so another tab's capture belongs on
+  // screen and the list does have to be rebuilt
+  popup.capture([captureOn(1, 1), captureOn(2, 2), captureOn(2, 3)]);
+
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 1);
+});
+
+test('a capture that replaced the oldest one reloads even though the count held', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: [captureOn(1, 1)] });
+
+  popup.capture([captureOn(1, 1), captureOn(1, 3)]);
+  const queriesBefore = popup.getFoundUrlsRequests().length;
+
+  // A tab sitting at its storage limit drops its oldest capture for every new
+  // one, so neither the count nor the newest capture moved. Only the far end
+  // says anything happened.
+  popup.capture([captureOn(1, 2), captureOn(1, 3)]);
+
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 1);
+});
+
+test('clearing the captures reloads even though nothing was added', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: [captureOn(1, 1)] });
+  const queriesBefore = primeCaptures(popup);
+
+  // Clearing removes the key rather than writing an empty list, so there is
+  // nothing to summarize and the list has to be emptied
+  popup.changeStorage({ foundUrls: { oldValue: [captureOn(1, 1)] } }, 'session');
+
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 1);
+});
+
+test('a capture reloads while the active tab is still being looked up', () => {
+  const popup = createPopupHarness({
+    rules: THREE_RULES,
+    deferActiveTab: true,
+    foundUrls: [captureOn(1, 1)]
+  });
+
+  popup.openPopup();
+  popup.resolveMonitorSettings({ monitorEnabled: true });
+  const queriesBefore = primeCaptures(popup);
+
+  popup.capture([captureOn(1, 1), captureOn(2, 2), captureOn(2, 3)]);
+
+  // Which tab to compare against is not known yet, so every tab is summarized.
+  // Reporting a change that is not on screen costs a spare reload, which is the
+  // right way round to be wrong.
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 1);
+
+  // Once the answer is back the other tab stops mattering
+  popup.resolveActiveTab(1);
+  popup.capture([captureOn(1, 1), captureOn(2, 2), captureOn(2, 3), captureOn(2, 4)]);
+  popup.capture([captureOn(1, 1), captureOn(2, 2), captureOn(2, 3), captureOn(2, 4), captureOn(2, 5)]);
+
+  // The first of those two crossed from summarizing every tab to summarizing
+  // one, which reads as a change; the second is the settled behaviour.
+  assert.equal(popup.getFoundUrlsRequests().length, queriesBefore + 2);
 });
 
 test('a capture before the stored settings are back does not query early', () => {

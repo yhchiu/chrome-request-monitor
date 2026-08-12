@@ -34,11 +34,32 @@ document.addEventListener('DOMContentLoaded', function() {
   let focusedRulesLoaded = false;
   let rulesLoaded = false;
 
+  // The tab this popup opened over, or null while it is still being looked up.
+  //
+  // Asked for once. Switching tabs closes the popup, so the tab the list is
+  // filtered to cannot change underneath it, and null until the answer is back
+  // only means the check below stands aside for a moment.
+  let activeTabId = null;
+
+  // The captured URLs this popup is showing, reduced to the numbers that say
+  // whether they moved. See hasVisibleChange.
+  let lastSeenCaptures = null;
+
   // Initialize popup
   function init() {
+    loadActiveTabId();
     loadMonitorSettings();
     loadFocusedRules();
     loadRules();
+  }
+
+  // Which tab the list is filtered to, so a backup write can be checked against
+  // it before anything is reloaded
+  function loadActiveTabId() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs && tabs[0];
+      activeTabId = activeTab && typeof activeTab.id === 'number' ? activeTab.id : null;
+    });
   }
 
   // Load monitor settings from storage
@@ -86,6 +107,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // turns it off, so a popup left open keeps up without being asked to.
   function isAutoRefreshOn() {
     return autoRefreshToggle ? autoRefreshToggle.checked : true;
+  }
+
+  // Whether the list is narrowed to the tab the popup opened over, which is the
+  // default
+  function isCurrentTabOnly() {
+    return tabFilterToggle ? tabFilterToggle.checked : true;
   }
 
   // Load URLs once the focus and the rule list are both known, so a focus
@@ -299,8 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Check if we should filter by current tab only (default: true)
-    const currentTabOnly = tabFilterToggle ? tabFilterToggle.checked : true;
-    
+    const currentTabOnly = isCurrentTabOnly();
+
     chrome.runtime.sendMessage({
       action: 'getFoundUrls',
       currentTabOnly: currentTabOnly
@@ -412,6 +439,71 @@ document.addEventListener('DOMContentLoaded', function() {
     saveFocusedRules(loadUrls);
   });
   
+  // The captures this popup is showing, reduced to the numbers that say whether
+  // they moved: how many there are and the span of their timestamps.
+  //
+  // The count alone is not enough. A tab sitting at its storage limit drops its
+  // oldest capture for every new one that arrives, which leaves the count
+  // exactly where it was while the contents move; the two ends catch that.
+  function summarizeCaptures(urls) {
+    // Null means every tab, which is also what an unknown active tab falls back
+    // to: summarizing more than is on screen can only ever report a change that
+    // is not there, and that costs a spare reload rather than a missed one.
+    const tabId = isCurrentTabOnly() ? activeTabId : null;
+    let count = 0;
+    let oldest = 0;
+    let newest = 0;
+
+    urls.forEach(urlData => {
+      if (tabId !== null && urlData.tabId !== tabId) {
+        return;
+      }
+
+      count += 1;
+
+      if (count === 1 || urlData.timestamp < oldest) {
+        oldest = urlData.timestamp;
+      }
+
+      if (count === 1 || urlData.timestamp > newest) {
+        newest = urlData.timestamp;
+      }
+    });
+
+    return { count: count, oldest: oldest, newest: newest };
+  }
+
+  // Whether a backup write actually moved the part of the list this popup is
+  // showing.
+  //
+  // The backup holds every tab's captures, so it is written on a profile with
+  // many tabs open about once a second whatever the tab being watched is doing.
+  // Reloading for all of them rebuilt the same rows over and over, and each
+  // rebuild is a full re-render of the list plus the forced layout that putting
+  // the scroll position back needs.
+  //
+  // Only the tab filter is applied here. Which rules are being shown is the
+  // background's decision and is deliberately not repeated: a copy of that here
+  // could drift and start hiding captures, while a reload this fails to skip
+  // only costs the work it was trying to save.
+  function hasVisibleChange(urls) {
+    // Not an array means the key was removed, which is what clearing does.
+    // There is nothing to compare against and the list has to be emptied.
+    if (!Array.isArray(urls)) {
+      lastSeenCaptures = null;
+      return true;
+    }
+
+    const seen = summarizeCaptures(urls);
+    const changed = lastSeenCaptures === null ||
+      seen.count !== lastSeenCaptures.count ||
+      seen.oldest !== lastSeenCaptures.oldest ||
+      seen.newest !== lastSeenCaptures.newest;
+
+    lastSeenCaptures = seen;
+    return changed;
+  }
+
   // Show what has just been captured without waiting for the refresh button.
   //
   // The background already backs the captured URLs up to session storage on a
@@ -435,6 +527,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Before the stored settings are back there is nothing to update: the load
     // that init is already waiting to run will pick these up.
     if (!isReady()) {
+      return;
+    }
+
+    // The write is global, so most of them say nothing about what is on screen
+    if (!hasVisibleChange(changes.foundUrls.newValue)) {
       return;
     }
 
