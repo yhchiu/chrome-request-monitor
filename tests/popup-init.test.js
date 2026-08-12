@@ -182,6 +182,12 @@ function createPopupHarness({
     resolveRules(loadedRules) {
       assert.ok(rulesCallback);
       rulesCallback({ urlRules: loadedRules });
+    },
+    // Flip the monitor switch the way a click would
+    setMonitoring(isEnabled) {
+      const toggle = document.getElementById('monitorToggle');
+      toggle.checked = isEnabled;
+      toggle.dispatch('change');
     }
   };
 }
@@ -338,5 +344,30 @@ test('the focus list is disabled while monitoring is off', () => {
     [true, true, true, true]
   );
   // The choice itself is kept, so turning monitoring back on restores it.
+  assert.deepEqual(popup.getFocusUpdates(), []);
+});
+
+test('turning monitoring back on restores the selection', () => {
+  const popup = createPopupHarness({
+    rules: THREE_RULES,
+    focusedRuleIds: ['rule-b']
+  });
+
+  popup.openPopup();
+  popup.resolveMonitorSettings({ monitorEnabled: false });
+  popup.setMonitoring(true);
+
+  assert.deepEqual(
+    popup.checkboxes().map(checkbox => checkbox.disabled),
+    [false, false, false, false]
+  );
+
+  // The same rule is still the one being shown
+  assert.deepEqual(
+    popup.checkboxes().filter(checkbox => checkbox.checked).map(checkbox => checkbox.value),
+    ['rule-b']
+  );
+
+  // Turning the monitor off and on again says nothing about the selection
   assert.deepEqual(popup.getFocusUpdates(), []);
 });
