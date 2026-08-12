@@ -12,10 +12,20 @@
 
 .url-monitor-overlay {
   all: initial !important;
+
+  /* How solid the overlay and its buttons are drawn.
+   *
+   * Kept as a custom property so every colour below can be written once. The
+   * script sets this one value from the user's setting, and hovering raises it
+   * without any colour being restated. It also survives the `all: initial`
+   * above, which is the one thing that reset does not touch, so it still
+   * reaches the buttons. */
+  --url-monitor-opacity: 0.95;
+
   display: block !important;
   box-sizing: border-box !important;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-  background: rgba(40, 44, 52, 0.95) !important;
+  background: rgba(40, 44, 52, var(--url-monitor-opacity)) !important;
   color: #fff !important;
   padding: 12px !important;
   border-radius: 8px !important;
@@ -27,6 +37,20 @@
   max-width: 400px !important;
   word-wrap: break-word !important;
   animation: url-monitor-slideIn 0.3s ease-out !important;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out !important;
+}
+
+/* Under the pointer an overlay is drawn solid and lifted slightly, so it is
+ * easy to read while it is being used. Only the one being pointed at, which is
+ * why this sits on the overlay rather than on the container. */
+.url-monitor-overlay:hover {
+  /* Important because the script writes the setting to the inline style, and a
+   * plain inline declaration outranks any rule in here however specific it is.
+   * Without this the hovered state would silently never apply. */
+  --url-monitor-opacity: 1 !important;
+
+  transform: scale(1.02) !important;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4) !important;
 }
 
 @keyframes url-monitor-slideIn {
@@ -54,12 +78,43 @@
   display: inline-block !important;
 }
 
+/* Every button colour lives here rather than in the script.
+ *
+ * The rules above reset the buttons with `all: initial !important` to keep the
+ * host page's styles out, and an important declaration beats a plain inline
+ * one, so a colour the script assigned to element.style never showed. A button
+ * with no rule of its own was left transparent by that reset and disappeared
+ * into the overlay. Declaring the colours here, hovered states included, is
+ * what keeps the three buttons consistent. */
 .url-monitor-overlay .copy-btn {
-  background: #61dafb !important;
+  background: rgba(97, 218, 251, var(--url-monitor-opacity)) !important;
   color: #282c34 !important;
 }
 
+.url-monitor-overlay .copy-btn:hover {
+  background: rgba(79, 168, 197, var(--url-monitor-opacity)) !important;
+}
+
+/* Confirmation that the URL was copied, held for a moment by the script */
+.url-monitor-overlay .copy-btn.copied,
+.url-monitor-overlay .copy-btn.copied:hover {
+  background: rgba(152, 195, 121, var(--url-monitor-opacity)) !important;
+}
+
 .url-monitor-overlay .close-btn {
-  background: #e06c75 !important;
-  color: white !important;
-} 
+  background: rgba(224, 108, 117, var(--url-monitor-opacity)) !important;
+  color: #fff !important;
+}
+
+.url-monitor-overlay .close-btn:hover {
+  background: rgba(194, 77, 90, var(--url-monitor-opacity)) !important;
+}
+
+.url-monitor-overlay .close-all-btn {
+  background: rgba(198, 120, 221, var(--url-monitor-opacity)) !important;
+  color: #fff !important;
+}
+
+.url-monitor-overlay .close-all-btn:hover {
+  background: rgba(167, 88, 192, var(--url-monitor-opacity)) !important;
+}

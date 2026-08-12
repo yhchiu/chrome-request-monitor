@@ -16,6 +16,7 @@ const OVERLAY_I18N_KEYS = [
 
 // Enough of an element for the overlay code to build and tear down its boxes
 function createElement(tagName = 'div') {
+  const classes = new Set();
   const element = {
     tagName,
     id: '',
@@ -26,13 +27,31 @@ function createElement(tagName = 'div') {
     parentNode: null,
     listeners: {},
     selectorStubs: new Map(),
+    // Plain assignments land on the object as they would on a real style
+    // declaration; setProperty is recorded the same way so a test can read back
+    // the custom property the overlay code sets.
     style: {
-      setProperty() {}
+      setProperty(name, value) {
+        this[name] = value;
+      }
     },
     classList: {
-      add() {},
-      remove() {},
-      toggle() {}
+      add(name) {
+        classes.add(name);
+      },
+      remove(name) {
+        classes.delete(name);
+      },
+      toggle(name) {
+        if (classes.has(name)) {
+          classes.delete(name);
+        } else {
+          classes.add(name);
+        }
+      },
+      contains(name) {
+        return classes.has(name);
+      }
     },
     appendChild(child) {
       child.parentNode = element;
@@ -130,8 +149,15 @@ function createContentHarness({ storedOverlaySettings } = {}) {
     querySelector() {
       return null;
     },
-    querySelectorAll() {
-      return [];
+    // The overlays currently on the page, which is what a settings change looks
+    // for when it brings them into line
+    querySelectorAll(selector) {
+      if (selector !== '.url-monitor-overlay') {
+        return [];
+      }
+
+      const container = body.children[0];
+      return container ? container.children.slice() : [];
     }
   };
 
@@ -276,6 +302,21 @@ function createContentHarness({ storedOverlaySettings } = {}) {
     // the timeouts are not paused.
     timeoutsScheduled() {
       return scheduledTimeouts;
+    },
+    // The style declaration of the overlay added most recently, which is where
+    // the opacity custom property lands
+    lastOverlayStyle() {
+      return this.lastOverlay().style;
+    },
+    // The same for every overlay on the page
+    overlayOpacities() {
+      const container = body.children[0];
+      return container
+        ? container.children.map(overlay => overlay.style['--url-monitor-opacity'])
+        : [];
+    },
+    buttonHasClass(selector, name) {
+      return this.lastOverlay().querySelector(selector).classList.contains(name);
     }
   };
 }
@@ -350,6 +391,75 @@ test('an overlay names every rule its URL matched', () => {
   const overlay = content.lastOverlayHtml();
   assert.ok(overlay.includes('rule-a - rule-a'), 'the first rule should be named');
   assert.ok(overlay.includes('rule-b - rule-b'), 'the second rule should be named');
+});
+
+// How an overlay looks is the stylesheet's job. It resets the overlay and its
+// buttons with `all: initial !important` to keep the host page's styles out,
+// and an important declaration beats a plain inline one, so a colour the script
+// assigned to element.style never took effect. The script hands over the one
+// setting behind those colours and nothing else.
+
+test('an overlay carries the opacity setting as a custom property', () => {
+  const content = createContentHarness({
+    storedOverlaySettings: {
+      maxOverlays: 5,
+      timeoutSeconds: 30,
+      position: 'top-right',
+      opacity: 0.5
+    }
+  });
+
+  content.showUrl('rule-a');
+
+  assert.equal(content.lastOverlayStyle()['--url-monitor-opacity'], 0.5);
+});
+
+test('the built in opacity is handed over when storage holds none', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+
+  assert.equal(content.lastOverlayStyle()['--url-monitor-opacity'], 0.95);
+});
+
+test('a changed opacity reaches the overlays already on screen', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+  content.showUrl('rule-b');
+
+  content.syncOverlaySettings({
+    maxOverlays: 5,
+    timeoutSeconds: 30,
+    position: 'top-right',
+    opacity: 0.4
+  });
+
+  assert.deepEqual(content.overlayOpacities(), [0.4, 0.4]);
+});
+
+test('no colour is written onto the overlay by the script', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+
+  // Writing one would be overridden by the stylesheet anyway, and having two
+  // places declare it is what let the buttons drift apart.
+  assert.equal(content.lastOverlayStyle().background, undefined);
+});
+
+test('copying marks the button instead of recolouring it', async () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+  content.pressButton('.copy-btn');
+  // The clipboard write resolves on a microtask
+  await new Promise(resolve => setImmediate(resolve));
+
+  // A class, so the confirmation follows the opacity setting and the hovered
+  // state without restating either
+  assert.equal(content.buttonHasClass('.copy-btn', 'copied'), true);
+  assert.equal(content.lastOverlay().querySelector('.copy-btn').style.background, undefined);
 });
 
 test('close all takes every overlay away', () => {

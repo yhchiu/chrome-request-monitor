@@ -256,29 +256,11 @@ function showUrlOverlay(urlData) {
   overlay.dataset.ruleIds = JSON.stringify(
     matchedRules(urlData).map(rule => rule.id).filter(id => id)
   );
-  overlay.style.cssText = `
-    background: rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95});
-    color: #fff;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    border: 1px solid #61dafb;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 14px;
-    line-height: 1.4;
-    animation: slideIn 0.3s ease-out;
-    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-    cursor: default;
-  `;
-  // Ensure background overrides stylesheet with !important
-  try {
-    overlay.style.setProperty(
-      'background',
-      `rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95})`,
-      'important'
-    );
-  } catch (e) {}
+  // How the overlay looks is the stylesheet's job. Everything it declares
+  // carries !important, to keep the host page's styles out, so anything written
+  // here as a plain inline style was being overridden anyway. The one thing
+  // left to pass in is the setting behind those colours.
+  applyOverlayOpacity(overlay);
   
   // Add keyframe animation
   if (!document.getElementById('url-monitor-styles')) {
@@ -316,39 +298,9 @@ function showUrlOverlay(urlData) {
       </div>
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button class="copy-btn" style="
-        background: #61dafb;
-        color: #282c34;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: bold;
-        transition: all 0.2s;
-      " data-i18n="overlayCopy">Copy</button>
-      <button class="close-btn" style="
-        background: #e06c75;
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: bold;
-        transition: all 0.2s;
-      " data-i18n="overlayClose">Close</button>
-      <button class="close-all-btn" style="
-        background: #c678dd;
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: bold;
-        transition: all 0.2s;
-      " data-i18n="overlayCloseAll">Close All</button>
+      <button class="copy-btn" data-i18n="overlayCopy">Copy</button>
+      <button class="close-btn" data-i18n="overlayClose">Close</button>
+      <button class="close-all-btn" data-i18n="overlayCloseAll">Close All</button>
     </div>
   `;
   
@@ -364,63 +316,30 @@ function showUrlOverlay(urlData) {
   const copyBtn = overlay.querySelector('.copy-btn');
   const closeBtn = overlay.querySelector('.close-btn');
   const closeAllBtn = overlay.querySelector('.close-all-btn');
-  // Initialize buttons background opacity according to settings
-  setOverlayButtonsOpacity(overlay, overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
-  
+
+  // No hover handlers here. Every button colour, hovered included, is declared
+  // in the stylesheet: it resets the buttons with `all: initial !important` to
+  // keep the host page out, and an important declaration beats a plain inline
+  // one, so a colour assigned to element.style never took effect.
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(urlData.url).then(() => {
       copyBtn.textContent = chrome.i18n.getMessage('copied') || 'Copied!';
-      const desiredOpacity = globalHoverState ? 1 : (overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
-      try {
-        copyBtn.style.setProperty('background', `rgba(152, 195, 121, ${desiredOpacity})`, 'important');
-      } catch (e) {
-        copyBtn.style.background = `rgba(152, 195, 121, ${desiredOpacity})`;
-      }
+      // A class rather than a colour, so the confirmation follows the opacity
+      // setting and the hovered state without restating either
+      copyBtn.classList.add('copied');
       setTimeout(() => {
         copyBtn.textContent = chrome.i18n.getMessage('overlayCopy') || 'Copy';
-        // Restore to default copy color with current desired opacity
-        const restoreOpacity = globalHoverState ? 1 : (overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
-        try {
-          copyBtn.style.setProperty('background', `rgba(97, 218, 251, ${restoreOpacity})`, 'important');
-        } catch (e) {
-          copyBtn.style.background = `rgba(97, 218, 251, ${restoreOpacity})`;
-        }
+        copyBtn.classList.remove('copied');
       }, 1500);
     });
   });
-  
-  copyBtn.addEventListener('mouseenter', () => {
-    copyBtn.style.background = '#4fa8c5';
-  });
-  
-  copyBtn.addEventListener('mouseleave', () => {
-    if (copyBtn.textContent === '複製') {
-      copyBtn.style.background = '#61dafb';
-    }
-  });
-  
+
   closeBtn.addEventListener('click', () => {
     removeOverlay(overlay); // Use helper function for consistent cleanup
-  });
-  
-  closeBtn.addEventListener('mouseenter', () => {
-    closeBtn.style.background = '#c24d5a';
-  });
-  
-  closeBtn.addEventListener('mouseleave', () => {
-    closeBtn.style.background = '#e06c75';
   });
 
   closeAllBtn.addEventListener('click', () => {
     removeAllOverlays();
-  });
-
-  closeAllBtn.addEventListener('mouseenter', () => {
-    closeAllBtn.style.background = '#a758c0';
-  });
-
-  closeAllBtn.addEventListener('mouseleave', () => {
-    closeAllBtn.style.background = '#c678dd';
   });
   
   // Add to container
@@ -429,22 +348,15 @@ function showUrlOverlay(urlData) {
   // Add to active overlays array
   activeOverlays.push(overlay);
   
-  // Mouse hover events with global timeout management
+  // Hovering pauses the timeouts, which is behaviour rather than appearance and
+  // so stays here. How a hovered overlay is drawn is the stylesheet's :hover
+  // rule: it cannot fall out of step with where the pointer actually is, and it
+  // covers the buttons through the opacity custom property.
   overlay.addEventListener('mouseenter', () => {
     pauseAllTimeouts();
     timeoutIndicator.style.display = 'inline';
-    overlay.style.transform = 'scale(1.02)';
-    overlay.style.boxShadow = '0 6px 25px rgba(0, 0, 0, 0.4)';
-    // Force background to full black on hover
-    try {
-      overlay.style.setProperty('background', 'rgba(40, 44, 52, 1)', 'important');
-    } catch (_) {
-      overlay.style.background = 'rgba(40, 44, 52, 1)';
-    }
-    // Buttons follow same full-opacity behavior
-    setOverlayButtonsOpacity(overlay, 1);
   });
-  
+
   overlay.addEventListener('mouseleave', () => {
     // Add a small delay to prevent accidental resume when moving between overlays
     setTimeout(() => {
@@ -456,13 +368,6 @@ function showUrlOverlay(urlData) {
         document.querySelectorAll('#timeout-indicator').forEach(indicator => {
           indicator.style.display = 'none';
         });
-        // Reset all overlay styles
-        document.querySelectorAll('.url-monitor-overlay').forEach(ol => {
-          ol.style.transform = 'scale(1)';
-          ol.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3)';
-        });
-        // Restore backgrounds to configured opacity
-        updateExistingOverlayStyles();
       }
     }, 100); // 100ms delay
   });
@@ -478,48 +383,22 @@ function showUrlOverlay(urlData) {
   }
 } 
 
-// Update styles of existing overlays when settings change (e.g., opacity)
+// Bring the overlays already on screen into line with a changed setting
 function updateExistingOverlayStyles() {
-  const overlays = document.querySelectorAll('.url-monitor-overlay');
-  overlays.forEach(overlay => {
-    try {
-      overlay.style.setProperty(
-        'background',
-        `rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95})`,
-        'important'
-      );
-    } catch (e) {
-      overlay.style.background = `rgba(40, 44, 52, ${overlaySettings.opacity != null ? overlaySettings.opacity : 0.95})`;
-    }
-    // Also restore buttons background opacity to match setting
-    setOverlayButtonsOpacity(overlay, overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
-  });
+  document.querySelectorAll('.url-monitor-overlay').forEach(applyOverlayOpacity);
 }
 
-// Helper: set copy/close button backgrounds according to desired opacity
-function setOverlayButtonsOpacity(overlayEl, opacity) {
-  const copy = overlayEl.querySelector('.copy-btn');
-  const close = overlayEl.querySelector('.close-btn');
-  const closeAll = overlayEl.querySelector('.close-all-btn');
-  if (copy) {
-    try {
-      copy.style.setProperty('background', `rgba(97, 218, 251, ${opacity})`, 'important');
-    } catch (e) {
-      copy.style.background = `rgba(97, 218, 251, ${opacity})`;
-    }
-  }
-  if (close) {
-    try {
-      close.style.setProperty('background', `rgba(224, 108, 117, ${opacity})`, 'important');
-    } catch (e) {
-      close.style.background = `rgba(224, 108, 117, ${opacity})`;
-    }
-  }
-  if (closeAll) {
-    try {
-      closeAll.style.setProperty('background', `rgba(198, 120, 221, ${opacity})`, 'important');
-    } catch (e) {
-      closeAll.style.background = `rgba(198, 120, 221, ${opacity})`;
-    }
-  }
+// Hand the opacity setting to the stylesheet.
+//
+// This is the whole of what the script has to say about how an overlay looks.
+// The colours are declared once in the stylesheet against this custom property,
+// so the overlay, its three buttons, the copied confirmation and every hovered
+// state follow the setting without any of them being restated here. Custom
+// properties are also what survives the `all: initial` the stylesheet uses to
+// keep the host page out, so it reaches the buttons.
+function applyOverlayOpacity(overlay) {
+  overlay.style.setProperty(
+    '--url-monitor-opacity',
+    overlaySettings.opacity != null ? overlaySettings.opacity : 0.95
+  );
 }
