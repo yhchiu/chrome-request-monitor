@@ -45,12 +45,5 @@
     }
   },
   
-  "options_page": "options.html",
-  
-  "web_accessible_resources": [
-    {
-      "resources": ["styles.css"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  "options_page": "options.html"
 } 
