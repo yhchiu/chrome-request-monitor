@@ -104,9 +104,9 @@ After setting up rules, when you browse websites:
 - **Supported Browsers**: Chrome 88+
 - **Required Permissions**:
   - `activeTab`: Access active tabs
+  - `tabs`: Read tab titles, and send notification boxes to open tabs
   - `storage`: Store user settings
   - `webRequest`: Monitor network requests
-  - `scripting`: Inject content scripts
 
 ## Why site access (`<all_urls>`) is required
 
