@@ -82,9 +82,10 @@ function createBackgroundHarness({
   sync = {},
   local = {},
   session = {},
-  holdLocalReads = false
+  holdLocalReads = false,
+  holdSyncReads = false
 } = {}) {
-  const syncArea = createStorageArea(sync);
+  const syncArea = createStorageArea(sync, { held: holdSyncReads });
   const localArea = createStorageArea(local, { held: holdLocalReads });
   const sessionArea = createStorageArea(session);
   const tabMessages = [];
@@ -179,6 +180,10 @@ function createBackgroundHarness({
     // Let a held local storage area answer its reads
     releaseLocalReads() {
       localArea.release();
+    },
+    // The same for sync, where the monitor switch and the rules live
+    releaseSyncReads() {
+      syncArea.release();
     },
     // Deliver a sync storage change the way Chrome does when another device
     // edits the rules
@@ -500,6 +505,57 @@ test('a URL captured before the migration finishes still carries a rule id', asy
   const urls = await harness.getFoundUrls();
   assert.equal(urls.length, 1);
   assert.ok(urls[0].rule.id, 'the captured rule should carry an id');
+});
+
+// The monitor switch defaults to on, so a request that beats the stored setting
+// is captured against a default the user may have turned off. Capture cannot be
+// taken back the way a shown overlay can.
+
+test('a request that arrives before the settings are loaded is not captured while monitoring is off', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES, monitorEnabled: false },
+    holdSyncReads: true
+  });
+
+  const pending = harness.startRequest('https://a.example.com/one');
+  await harness.settle();
+
+  harness.releaseSyncReads();
+  await pending;
+  await harness.settle();
+
+  assert.deepEqual(plain(await harness.getFoundUrls()), []);
+  assert.deepEqual(harness.overlayMessages(), []);
+});
+
+test('a request that arrives before the settings are loaded is captured while monitoring is on', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES, monitorEnabled: true },
+    holdSyncReads: true
+  });
+
+  const pending = harness.startRequest('https://a.example.com/one');
+  await harness.settle();
+
+  harness.releaseSyncReads();
+  await pending;
+  await harness.settle();
+
+  // Waiting must not cost the request: it is only delayed, never dropped
+  const urls = await harness.getFoundUrls();
+  assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-a']);
+});
+
+test('monitoring turned off stops requests being captured', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES, monitorEnabled: false }
+  });
+
+  await harness.settle();
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+
+  assert.deepEqual(plain(await harness.getFoundUrls()), []);
 });
 
 // Rules can also be deleted on another device, which arrives here as a sync

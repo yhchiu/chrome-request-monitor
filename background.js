@@ -92,6 +92,20 @@ async function initializeRules() {
   }
 }
 
+// Load whether monitoring is on. Part of startup, because the default is on and
+// a request handled against that default captures URLs the user asked not to
+// have captured.
+async function initializeMonitorSettings() {
+  try {
+    const result = await chrome.storage.sync.get(['monitorEnabled']);
+    monitorSettings.enabled = result.monitorEnabled !== false; // Default to true
+  } catch (error) {
+    // Left on, which is the default and what the read used to fall back to. A
+    // transient storage error should not quietly stop monitoring altogether.
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to load monitor settings:`, error);
+  }
+}
+
 // null means every rule; anything that is not an array is read the same way
 function normalizeFocusedRuleIds(value) {
   return Array.isArray(value) ? value : null;
@@ -405,22 +419,28 @@ async function clearFoundUrls() {
 // before this has finished. Everything that matches, captures or reads waits on
 // startupReady first.
 //
-// Without it, the focus would still be the "every rule" default and would show
-// overlays the user has hidden, the rules would still be empty and would match
-// nothing, and restoring the captured URLs would clear whatever a request had
-// captured in the meantime, because the restore replaces what is held rather
-// than adding to it.
+// Without it, the monitor switch would still be the "on" default and would
+// capture for a user who had turned it off, the focus would still be the "every
+// rule" default and would show overlays the user has hidden, the rules would
+// still be empty and would match nothing, and restoring the captured URLs would
+// clear whatever a request had captured in the meantime, because the restore
+// replaces what is held rather than adding to it.
 //
 // The catch keeps those waiters from hanging if the initialization ever
 // rejects.
 const startupReady = Promise.all([
   initializeFoundUrls(),
+  initializeMonitorSettings(),
   migrateStoredData()
 ]).catch(() => {});
 
-// Initialize monitor settings from storage
-chrome.storage.sync.get(['monitorEnabled'], (result) => {
-  monitorSettings.enabled = result.monitorEnabled !== false; // Default to true
+// Whether the promise above has settled. A busy profile makes thousands of
+// requests a second, and awaiting a promise that resolved long ago still costs
+// a microtask on every one of them. Once startup is done this is a single
+// boolean test instead.
+let startupDone = false;
+startupReady.then(() => {
+  startupDone = true;
 });
 
 // Initialize data settings from storage
@@ -489,17 +509,21 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // Listen for web requests
 chrome.webRequest.onBeforeRequest.addListener(
   async (details) => {
+    // Wait for the stored settings before deciding anything, including whether
+    // to capture at all: the monitor switch defaults to on, and a URL captured
+    // against that default cannot be taken back the way a shown overlay can.
+    // This also puts the match below after the id migration, so the rule
+    // snapshot kept with the URL always carries an id and can be matched
+    // against a focus later. The listener is not blocking, so this delays only
+    // our own work: the request still goes ahead and is still captured.
+    if (!startupDone) {
+      await startupReady;
+    }
+
     // Check if monitoring is enabled
     if (!monitorSettings.enabled) {
       return;
     }
-
-    // Wait for the stored focus and the rules before deciding anything. This
-    // also puts the match below after the id migration, so the rule snapshot
-    // kept with the URL always carries an id and can be matched against a focus
-    // later. The listener is not blocking, so this delays only our own work:
-    // the request still goes ahead and is still captured.
-    await startupReady;
 
     if (compiledRules.length === 0) return;
 
