@@ -8,6 +8,9 @@ let monitorSettings = {
 // only those ids, and an empty array means none of them.
 let focusedRuleIds = null;
 
+// Whether the focus above came from the user rather than from the default
+let focusSetByUser = false;
+
 // Data settings
 let dataSettings = {
   maxStorageLimit: 100
@@ -111,6 +114,11 @@ async function migrateFocusedRules() {
 async function initializeFocusedRules() {
   try {
     const result = await chrome.storage.local.get(['focusedRuleIds']);
+    // The popup can change the focus while this read is still in flight, and
+    // that choice is newer than anything storage can tell us.
+    if (focusSetByUser) {
+      return;
+    }
     focusedRuleIds = normalizeFocusedRuleIds(result.focusedRuleIds);
   } catch (error) {
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to load focused rules:`, error);
@@ -169,9 +177,15 @@ async function clearFoundUrls() {
   }
 }
 
-// Initialize on Service Worker startup
+// Initialize on Service Worker startup.
+//
+// A request is what wakes the Service Worker, so the listener below can run
+// before this has finished. Anything that reads the focus waits on focusReady
+// first, otherwise it would decide against the "every rule" default and show
+// overlays the user has hidden. The catch keeps those waiters from hanging if
+// the initialization ever rejects.
 initializeFoundUrls();
-migrateStoredData();
+const focusReady = migrateStoredData().catch(() => {});
 
 // Initialize monitor settings from storage
 chrome.storage.sync.get(['monitorEnabled'], (result) => {
@@ -193,7 +207,14 @@ chrome.webRequest.onBeforeRequest.addListener(
     if (!monitorSettings.enabled) {
       return;
     }
-    
+
+    // Wait for the stored focus before deciding anything. This also puts the
+    // rule read below after the id migration, so the rule snapshot kept with
+    // the URL always carries an id and can be matched against a focus later.
+    // The listener is not blocking, so this delays only our own work: the
+    // request still goes ahead and is still captured.
+    await focusReady;
+
     // Get user-defined rules from storage
     const result = await chrome.storage.sync.get(['urlRules']);
     const rules = result.urlRules || [];
@@ -290,6 +311,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Update the in-memory copy before responding so the caller's next query
     // already sees the new focus.
     focusedRuleIds = normalizeFocusedRuleIds(request.focusedRuleIds);
+    focusSetByUser = true;
     broadcastFocusedRules();
     chrome.storage.local.set({ focusedRuleIds: focusedRuleIds }).then(() => {
       sendResponse({ success: true });
@@ -320,6 +342,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Async function to handle getFoundUrls request
 async function handleGetFoundUrls(request, sendResponse) {
   try {
+    // The popup can ask before the stored focus has been read, which would
+    // answer with an unfiltered list
+    await focusReady;
+
     // Always use the most up-to-date data from memory cache
     let filteredUrls = foundUrlsCache;
     

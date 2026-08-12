@@ -12,27 +12,51 @@ function plain(value) {
 
 // Minimal chrome.storage area that supports both the promise and the callback
 // calling styles used by background.js.
-function createStorageArea(initial) {
+//
+// A held area keeps its reads open until release() is called. That is how a
+// test reproduces a request arriving before initialization has finished: the
+// plain stub resolves within a microtask, which is far too quick for the race
+// to ever show up.
+function createStorageArea(initial, { held = false } = {}) {
   const data = { ...initial };
   const writes = [];
+
+  let openReads;
+  const opened = held
+    ? new Promise(resolve => { openReads = resolve; })
+    : null;
 
   return {
     data,
     writes,
+    release() {
+      if (openReads) {
+        openReads();
+      }
+    },
     get(keys, callback) {
-      const result = {};
-      const keyList = Array.isArray(keys) ? keys : [keys];
-      keyList.forEach(key => {
-        if (key in data) {
-          result[key] = data[key];
-        }
-      });
+      const read = () => {
+        const result = {};
+        const keyList = Array.isArray(keys) ? keys : [keys];
+        keyList.forEach(key => {
+          if (key in data) {
+            result[key] = data[key];
+          }
+        });
+        return result;
+      };
 
       if (callback) {
-        callback(result);
+        // Kept synchronous unless the area is held, so the existing tests see
+        // exactly the timing they were written against.
+        if (opened) {
+          opened.then(() => callback(read()));
+        } else {
+          callback(read());
+        }
         return undefined;
       }
-      return Promise.resolve(result);
+      return opened ? opened.then(read) : Promise.resolve(read());
     },
     set(items, callback) {
       Object.assign(data, items);
@@ -54,9 +78,14 @@ function createStorageArea(initial) {
   };
 }
 
-function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
+function createBackgroundHarness({
+  sync = {},
+  local = {},
+  session = {},
+  holdLocalReads = false
+} = {}) {
   const syncArea = createStorageArea(sync);
-  const localArea = createStorageArea(local);
+  const localArea = createStorageArea(local, { held: holdLocalReads });
   const sessionArea = createStorageArea(session);
   const tabMessages = [];
   let messageListener;
@@ -131,6 +160,10 @@ function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
         await new Promise(resolve => setImmediate(resolve));
       }
     },
+    // Let a held local storage area answer its reads
+    releaseLocalReads() {
+      localArea.release();
+    },
     sendMessage(message) {
       return new Promise(resolve => {
         messageListener(message, {}, resolve);
@@ -139,6 +172,11 @@ function createBackgroundHarness({ sync = {}, local = {}, session = {} } = {}) {
     // Drive the webRequest listener the way Chrome would
     async request(url, tabId = 1) {
       await requestListener({ url, tabId });
+    },
+    // Start a request without waiting for it, so a test can look at what the
+    // background did while the request is still being handled
+    startRequest(url, tabId = 1) {
+      return requestListener({ url, tabId });
     },
     overlayMessages() {
       return tabMessages
@@ -359,6 +397,86 @@ test('a rule outside the focus is still captured', async () => {
   await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: null });
   const urls = await harness.getFoundUrls();
   assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-b']);
+});
+
+// A request is what wakes the Service Worker, so it can arrive before the
+// stored focus has been read. Until it has, the in memory focus is still the
+// "every rule" default, which would show overlays the user has hidden.
+
+test('a request that arrives before the focus is loaded shows no overlay for a hidden rule', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-b'] },
+    holdLocalReads: true
+  });
+
+  const pending = harness.startRequest('https://a.example.com/one');
+  await harness.settle();
+
+  // Nothing is decided while the stored focus is still unknown
+  assert.deepEqual(harness.overlayMessages(), []);
+
+  harness.releaseLocalReads();
+  await pending;
+  await harness.settle();
+
+  // Rule A is outside the stored focus, so it stays quiet
+  assert.deepEqual(harness.overlayMessages(), []);
+});
+
+test('a request that arrives before the focus is loaded still shows a focused rule', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-b'] },
+    holdLocalReads: true
+  });
+
+  const pending = harness.startRequest('https://b.example.com/one');
+  await harness.settle();
+  assert.deepEqual(harness.overlayMessages(), []);
+
+  harness.releaseLocalReads();
+  await pending;
+  await harness.settle();
+
+  assert.deepEqual(harness.overlayMessages(), ['rule-b']);
+});
+
+test('a query that arrives before the focus is loaded waits for it', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: ['rule-b'] },
+    session: { foundUrls: CAPTURED_URLS },
+    holdLocalReads: true
+  });
+
+  const pending = harness.getFoundUrls();
+  await harness.settle();
+
+  harness.releaseLocalReads();
+  const urls = await pending;
+
+  assert.deepEqual(plain(urls.map(entry => entry.rule.id)), ['rule-b']);
+});
+
+test('a URL captured before the migration finishes still carries a rule id', async () => {
+  const harness = createBackgroundHarness({
+    // Stored before rule ids existed, so the id is backfilled by the migration
+    sync: { urlRules: [{ name: 'A', type: 'contains', value: 'a.example.com' }] },
+    holdLocalReads: true
+  });
+
+  const pending = harness.startRequest('https://a.example.com/one');
+  await harness.settle();
+
+  harness.releaseLocalReads();
+  await pending;
+  await harness.settle();
+
+  // Without an id the captured URL could never be matched against a focus
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls.length, 1);
+  assert.ok(urls[0].rule.id, 'the captured rule should carry an id');
 });
 
 test('changing the focus is broadcast to the tabs', async () => {
