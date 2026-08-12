@@ -18,6 +18,59 @@ let dataSettings = {
   maxStorageLimit: 100
 };
 
+// The rules, kept in memory and ready to test against a URL. Reading them from
+// storage per request costs a round trip to the browser process, and a busy
+// profile makes thousands of requests a second, so the read happens once here
+// and again whenever the rules change.
+let compiledRules = [];
+
+// Turn a stored rule into a function that tests a URL with no per request
+// setup. A regex rule used to be recompiled on every request, which is by far
+// the most expensive part of matching.
+function compileRule(rule) {
+  if (rule.type === 'contains') {
+    return { rule: rule, matches: url => url.includes(rule.value) };
+  }
+
+  if (rule.type === 'startswith') {
+    return { rule: rule, matches: url => url.startsWith(rule.value) };
+  }
+
+  if (rule.type === 'endswith') {
+    return { rule: rule, matches: url => url.endsWith(rule.value) };
+  }
+
+  if (rule.type === 'regex') {
+    try {
+      const regex = new RegExp(rule.value, 'i');
+      return { rule: rule, matches: url => regex.test(url) };
+    } catch (error) {
+      // Reported once when the rule is compiled rather than on every request
+      console.error(`[${chrome.i18n.getMessage('extensionName')}] Invalid regex pattern:`, rule.value);
+      return { rule: rule, matches: () => false };
+    }
+  }
+
+  // An unknown type matches nothing, the same as before
+  return { rule: rule, matches: () => false };
+}
+
+function setCompiledRules(rules) {
+  compiledRules = rules.map(compileRule);
+}
+
+// Load the rules into memory. Runs after the id migration so the rule kept with
+// each captured URL always carries an id.
+async function initializeRules() {
+  try {
+    const result = await chrome.storage.sync.get(['urlRules']);
+    setCompiledRules(result.urlRules || []);
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to load rules:`, error);
+    compiledRules = [];
+  }
+}
+
 // null means every rule; anything that is not an array is read the same way
 function normalizeFocusedRuleIds(value) {
   return Array.isArray(value) ? value : null;
@@ -160,6 +213,7 @@ async function migrateStoredData() {
   await migrateRuleIds();
   await migrateFocusedRules();
   await initializeFocusedRules();
+  await initializeRules();
 }
 
 // Initialize from persistent storage when Service Worker starts
@@ -208,12 +262,13 @@ async function clearFoundUrls() {
 // Initialize on Service Worker startup.
 //
 // A request is what wakes the Service Worker, so the listener below can run
-// before this has finished. Anything that reads the focus waits on focusReady
-// first, otherwise it would decide against the "every rule" default and show
-// overlays the user has hidden. The catch keeps those waiters from hanging if
-// the initialization ever rejects.
+// before this has finished. Anything that reads the focus or the rules waits on
+// settingsReady first, otherwise it would decide against the "every rule"
+// default and show overlays the user has hidden, or match against an empty rule
+// set. The catch keeps those waiters from hanging if the initialization ever
+// rejects.
 initializeFoundUrls();
-const focusReady = migrateStoredData().catch(() => {});
+const settingsReady = migrateStoredData().catch(() => {});
 
 // Initialize monitor settings from storage
 chrome.storage.sync.get(['monitorEnabled'], (result) => {
@@ -236,40 +291,20 @@ chrome.webRequest.onBeforeRequest.addListener(
       return;
     }
 
-    // Wait for the stored focus before deciding anything. This also puts the
-    // rule read below after the id migration, so the rule snapshot kept with
-    // the URL always carries an id and can be matched against a focus later.
-    // The listener is not blocking, so this delays only our own work: the
-    // request still goes ahead and is still captured.
-    await focusReady;
+    // Wait for the stored focus and the rules before deciding anything. This
+    // also puts the match below after the id migration, so the rule snapshot
+    // kept with the URL always carries an id and can be matched against a focus
+    // later. The listener is not blocking, so this delays only our own work:
+    // the request still goes ahead and is still captured.
+    await settingsReady;
 
-    // Get user-defined rules from storage
-    const result = await chrome.storage.sync.get(['urlRules']);
-    const rules = result.urlRules || [];
-    
-    if (rules.length === 0) return;
-    
+    if (compiledRules.length === 0) return;
+
     // Check if URL matches any rule (always check all rules and filter later in display)
-    const matchedRule = rules.find(rule => {
-      if (rule.type === 'contains') {
-        return details.url.includes(rule.value);
-      } else if (rule.type === 'regex') {
-        try {
-          const regex = new RegExp(rule.value, 'i');
-          return regex.test(details.url);
-        } catch (e) {
-          console.error(`[${chrome.i18n.getMessage('extensionName')}] Invalid regex pattern:`, rule.value);
-          return false;
-        }
-      } else if (rule.type === 'startswith') {
-        return details.url.startsWith(rule.value);
-      } else if (rule.type === 'endswith') {
-        return details.url.endsWith(rule.value);
-      }
-      return false;
-    });
-    
-    if (matchedRule) {
+    const matched = compiledRules.find(entry => entry.matches(details.url));
+
+    if (matched) {
+      const matchedRule = matched.rule;
       // Get tab information to include title and determine if we can message this tab
       let tabTitle = chrome.i18n.getMessage('unknown') || 'Unknown';
       let tabUrl = '';
@@ -372,7 +407,7 @@ async function handleGetFoundUrls(request, sendResponse) {
   try {
     // The popup can ask before the stored focus has been read, which would
     // answer with an unfiltered list
-    await focusReady;
+    await settingsReady;
 
     // Always use the most up-to-date data from memory cache
     let filteredUrls = foundUrlsCache;
@@ -417,7 +452,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     // Rules can be deleted on another device, so the focus has to be checked
     // against what is left
     if (changes.urlRules) {
-      reconcileFocusWithRules(changes.urlRules.newValue || []);
+      const rules = changes.urlRules.newValue || [];
+      // This is what keeps the in memory rules current, so a request never has
+      // to read them back from storage
+      setCompiledRules(rules);
+      reconcileFocusWithRules(rules);
     }
 
     // Update monitor settings
