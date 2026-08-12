@@ -50,6 +50,19 @@ function applyFocusChange(update) {
   });
 }
 
+// Keep the About tab in sync with the packaged extension version. The
+// manifest is the single source of truth used by Chrome when the extension is
+// installed, so a version bump does not require a matching UI edit.
+function displayExtensionVersion() {
+  const versionElement = document.querySelector('[data-i18n="extensionVersion"]');
+  if (!versionElement) {
+    return;
+  }
+
+  const version = chrome.runtime.getManifest().version;
+  versionElement.textContent = getMessage('extensionVersion', version);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const ruleForm = document.getElementById('ruleForm');
   const rulesList = document.getElementById('rulesList');
@@ -1066,6 +1079,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loadRequestTypes();
   loadOverlaySettings();
   loadDataSettings();
+  displayExtensionVersion();
 
   // Settings event listeners
   saveButton.addEventListener('click', saveSettingsFunction);
@@ -1091,4 +1105,4 @@ document.addEventListener('DOMContentLoaded', function() {
       e.target.value = '';
     }
   });
-}); 
+});

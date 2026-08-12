@@ -691,7 +691,7 @@
     "description": "Extension name"
   },
   "extensionVersion": {
-    "message": "Version 1.0.0",
+    "message": "Version $1",
     "description": "Extension version"
   },
   "extensionDescription": {
@@ -794,4 +794,4 @@
     "message": "Build Date:",
     "description": "Build date label"
   }
-} 
+}

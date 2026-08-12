@@ -701,7 +701,7 @@
     "description": "Extension name in Simplified Chinese"
   },
   "extensionVersion": {
-    "message": "版本 1.0.0",
+    "message": "版本 $1",
     "description": "Extension version in Simplified Chinese"
   },
   "extensionDescription": {
@@ -804,4 +804,4 @@
     "message": "构建日期：",
     "description": "Build date label in Simplified Chinese"
   }
-} 
+}
