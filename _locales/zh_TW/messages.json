@@ -563,7 +563,7 @@
     "description": "More options button text in Traditional Chinese"
   },
   "maxStorageTitle": {
-    "message": "匹配URL最大儲存數量",
+    "message": "每個分頁匹配URL最大儲存數量",
     "description": "Data management title in Traditional Chinese"
   },
   "maxStorageLimit": {
@@ -571,7 +571,7 @@
     "description": "Maximum storage limit field label in Traditional Chinese"
   },
   "maxStorageLimitHelpText": {
-    "message": "記憶體中儲存的匹配URL最大數量 (10-1000)",
+    "message": "每個分頁保留的匹配URL最大數量 (10-1000)",
     "description": "Help text for max storage limit field in Traditional Chinese"
   },
   "dataManagementExplanationTitle": {
@@ -583,7 +583,7 @@
     "description": "Data storage limit label in Traditional Chinese"
   },
   "dataStorageLimitExplanation": {
-    "message": "當達到上限時，較舊的URL會自動被移除以騰出空間給新的URL",
+    "message": "每個分頁各自保留自己的URL，流量大的分頁不會再擠掉其他分頁找到的結果。當某個分頁達到上限時，會移除該分頁較舊的URL以騰出空間",
     "description": "Data storage limit explanation in Traditional Chinese"
   },
   "dataPerformanceLabel": {

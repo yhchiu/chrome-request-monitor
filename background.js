@@ -1,7 +1,28 @@
 // Background service worker for Chrome extension
 importScripts('rule-id.js'); // createRuleId, shared with the options page
 
-let foundUrlsCache = []; // Memory cache for fast access
+// Captured URLs, kept per tab rather than in one shared list.
+//
+// They used to share a single list trimmed to the storage limit, so a tab
+// making many matching requests evicted everything every other tab had
+// captured. The popup shows the current tab by default, which meant that on a
+// busy profile the view a user actually looks at was almost always empty.
+//
+// A Map keeps its insertion order, so re-inserting a tab whenever it captures
+// something leaves the least recently active tab first. That is what makes the
+// bounds below cheap to apply.
+const foundUrlsByTab = new Map();
+let foundUrlsTotal = 0;
+
+// How many tabs keep a list of their own. Without this, ten thousand tabs each
+// holding the storage limit would be far more than the Service Worker should
+// carry.
+const MAX_TRACKED_TABS = 50;
+
+// A ceiling on everything held at once, whatever the per tab limit is set to.
+// It also bounds the backup write, since that serializes the lot.
+const MAX_TOTAL_FOUND_URLS = 2000;
+
 let monitorSettings = {
   enabled: true
 };
@@ -248,14 +269,68 @@ async function migrateStoredData() {
   await initializeRules();
 }
 
+// Group a flat list of captured URLs back into the per tab lists.
+//
+// The backup is written flat, which is also the shape it had before the lists
+// were split per tab, so a backup written by an older version restores without
+// needing to be converted.
+function restoreFoundUrls(urls) {
+  foundUrlsByTab.clear();
+  foundUrlsTotal = 0;
+
+  urls.forEach(urlData => {
+    const existing = foundUrlsByTab.get(urlData.tabId) || [];
+    existing.push(urlData);
+    foundUrlsByTab.set(urlData.tabId, existing);
+    foundUrlsTotal += 1;
+  });
+}
+
+// Everything captured, oldest first, for the views that are not limited to a
+// single tab. The lists are per tab, so the combined order has to be restored.
+function allFoundUrls() {
+  const all = [];
+  foundUrlsByTab.forEach(urls => {
+    urls.forEach(urlData => all.push(urlData));
+  });
+  return all.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+// Drop everything captured by the tab that has been quiet the longest
+function forgetLeastRecentTab() {
+  const oldestTabId = foundUrlsByTab.keys().next().value;
+  foundUrlsTotal -= foundUrlsByTab.get(oldestTabId).length;
+  foundUrlsByTab.delete(oldestTabId);
+}
+
+// Bring what is held back inside the limits. Called after a capture and after
+// the user changes the limit.
+function enforceFoundUrlLimits() {
+  const perTabLimit = dataSettings.maxStorageLimit;
+
+  foundUrlsByTab.forEach(urls => {
+    if (urls.length > perTabLimit) {
+      foundUrlsTotal -= urls.length - perTabLimit;
+      urls.splice(0, urls.length - perTabLimit);
+    }
+  });
+
+  // Never down to nothing: the tab that just captured something has to survive
+  // its own capture, whatever the limits are set to.
+  while (foundUrlsByTab.size > 1 &&
+         (foundUrlsByTab.size > MAX_TRACKED_TABS || foundUrlsTotal > MAX_TOTAL_FOUND_URLS)) {
+    forgetLeastRecentTab();
+  }
+}
+
 // Initialize from persistent storage when Service Worker starts
 async function initializeFoundUrls() {
   try {
     const result = await chrome.storage.session.get(['foundUrls']);
-    foundUrlsCache = result.foundUrls || [];
+    restoreFoundUrls(result.foundUrls || []);
   } catch (error) {
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to initialize found URLs from storage:`, error);
-    foundUrlsCache = [];
+    restoreFoundUrls([]);
   }
 }
 
@@ -281,7 +356,7 @@ function scheduleBackup() {
     backupTimer = null;
     try {
       await chrome.storage.session.set({
-        foundUrls: foundUrlsCache
+        foundUrls: allFoundUrls()
       });
     } catch (error) {
       console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to backup URLs to storage:`, error);
@@ -291,20 +366,24 @@ function scheduleBackup() {
 
 // Add URL with hybrid caching strategy
 function addFoundUrl(urlData) {
-  // Immediately add to memory cache for fast access
-  foundUrlsCache.push(urlData);
+  const existing = foundUrlsByTab.get(urlData.tabId) || [];
 
-  // Limit cache size in memory
-  if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
-    foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
-  }
+  // Removing before setting is what moves this tab to the end of the map, so
+  // the tab that has been quiet the longest stays at the front
+  foundUrlsByTab.delete(urlData.tabId);
 
+  existing.push(urlData);
+  foundUrlsTotal += 1;
+  foundUrlsByTab.set(urlData.tabId, existing);
+
+  enforceFoundUrlLimits();
   scheduleBackup();
 }
 
 // Clear URLs from both cache and storage
 async function clearFoundUrls() {
-  foundUrlsCache = [];
+  foundUrlsByTab.clear();
+  foundUrlsTotal = 0;
 
   // A backup that is still waiting would write the emptied cache straight back
   // over the removal
@@ -503,8 +582,18 @@ async function handleGetFoundUrls(request, sendResponse) {
     await settingsReady;
 
     // Always use the most up-to-date data from memory cache
-    let filteredUrls = foundUrlsCache;
-    
+    let filteredUrls;
+
+    if (request.currentTabOnly) {
+      // Get current active tab
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs[0];
+      // One tab's captures are a lookup now rather than a scan of everything
+      filteredUrls = activeTab ? (foundUrlsByTab.get(activeTab.id) || []) : [];
+    } else {
+      filteredUrls = allFoundUrls();
+    }
+
     // Keep only the focused rules. Each stored URL keeps the rule it matched,
     // so the id is enough on its own: no lookup against the current rules, and
     // editing a rule later does not hide the URLs it already matched.
@@ -513,22 +602,15 @@ async function handleGetFoundUrls(request, sendResponse) {
         urlData => urlData.rule && focusedRuleIds.includes(urlData.rule.id)
       );
     }
-    
-    if (request.currentTabOnly) {
-      // Get current active tab
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      const activeTab = tabs[0];
-      
-      if (activeTab) {
-        // Filter URLs by current tab ID
-        const currentTabUrls = filteredUrls.filter(urlData => urlData.tabId === activeTab.id);
-        sendResponse({ urls: currentTabUrls });
-      } else {
-        sendResponse({ urls: [] });
-      }
-    } else {
-      sendResponse({ urls: filteredUrls });
+
+    // The popup builds a row for every entry it is handed, so give it no more
+    // than the limit the user set. Across every tab there can now be more than
+    // that held.
+    if (filteredUrls.length > dataSettings.maxStorageLimit) {
+      filteredUrls = filteredUrls.slice(-dataSettings.maxStorageLimit);
     }
+
+    sendResponse({ urls: filteredUrls });
   } catch (error) {
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Error in handleGetFoundUrls:`, error);
     sendResponse({ urls: [] });
@@ -560,12 +642,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     // Update data settings
     if (changes.dataSettings) {
       dataSettings = changes.dataSettings.newValue;
-      
-      // Immediately apply new storage limit if current cache exceeds it
-      if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
-        foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
-        scheduleBackup();
-      }
+
+      // Immediately apply the new limit to what is already held
+      enforceFoundUrlLimits();
+      scheduleBackup();
     }
     
     // Update overlay settings
@@ -580,8 +660,5 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // Enhanced cleanup with hybrid storage management
 setInterval(() => {
-  if (foundUrlsCache.length > dataSettings.maxStorageLimit) {
-    foundUrlsCache = foundUrlsCache.slice(-dataSettings.maxStorageLimit);
-    scheduleBackup();
-  }
+  enforceFoundUrlLimits();
 }, 60000); // Check every minute

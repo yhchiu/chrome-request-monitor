@@ -290,7 +290,7 @@ test('found URLs are filtered by the focused rule ids', async () => {
   await harness.settle();
 
   const urls = await harness.getFoundUrls();
-  assert.deepEqual(urls.map(entry => entry.url), ['https://a.example.com/1']);
+  assert.deepEqual(plain(urls.map(entry => entry.url)), ['https://a.example.com/1']);
 });
 
 test('several rules can be focused at once', async () => {
@@ -302,7 +302,7 @@ test('several rules can be focused at once', async () => {
   await harness.settle();
 
   const urls = await harness.getFoundUrls();
-  assert.deepEqual(urls.map(entry => entry.url), [
+  assert.deepEqual(plain(urls.map(entry => entry.url)), [
     'https://a.example.com/1',
     'https://c.example.com/1'
   ]);
@@ -316,7 +316,7 @@ test('an empty focus shows nothing', async () => {
 
   await harness.settle();
 
-  assert.deepEqual(await harness.getFoundUrls(), []);
+  assert.deepEqual(plain(await harness.getFoundUrls()), []);
 });
 
 test('deleting an earlier rule does not change what the remaining focus returns', async () => {
@@ -333,7 +333,7 @@ test('deleting an earlier rule does not change what the remaining focus returns'
   await harness.settle();
 
   const urls = await harness.getFoundUrls();
-  assert.deepEqual(urls.map(entry => entry.url), ['https://b.example.com/1']);
+  assert.deepEqual(plain(urls.map(entry => entry.url)), ['https://b.example.com/1']);
 });
 
 test('editing a rule value keeps the URLs it already matched', async () => {
@@ -374,7 +374,7 @@ test('setFocusedRules updates the focus before it responds', async () => {
 
   // No settle in between: the next query must already see the new focus.
   const urls = await harness.getFoundUrls();
-  assert.deepEqual(urls.map(entry => entry.url), ['https://b.example.com/1']);
+  assert.deepEqual(plain(urls.map(entry => entry.url)), ['https://b.example.com/1']);
   assert.deepEqual(plain(harness.localData.focusedRuleIds), ['rule-b']);
 });
 

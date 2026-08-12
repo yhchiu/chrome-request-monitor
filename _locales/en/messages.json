@@ -553,7 +553,7 @@
     "description": "More options button text"
   },
   "maxStorageTitle": {
-    "message": "Maximum Storage Limit of Matched URLs",
+    "message": "Maximum Stored Matched URLs Per Tab",
     "description": "Data management title"
   },
   "maxStorageLimit": {
@@ -561,7 +561,7 @@
     "description": "Maximum storage limit field label"
   },
   "maxStorageLimitHelpText": {
-    "message": "Maximum number of matched URLs stored in memory (10-1000)",
+    "message": "Maximum number of matched URLs kept for each tab (10-1000)",
     "description": "Help text for max storage limit field"
   },
   "dataManagementExplanationTitle": {
@@ -573,7 +573,7 @@
     "description": "Data storage limit label"
   },
   "dataStorageLimitExplanation": {
-    "message": "When the limit is reached, older URLs will be automatically removed to make space for new ones",
+    "message": "Each tab keeps its own URLs, so a busy tab no longer pushes out what other tabs found. When a tab reaches the limit, its older URLs are removed to make space",
     "description": "Data storage limit explanation"
   },
   "dataPerformanceLabel": {

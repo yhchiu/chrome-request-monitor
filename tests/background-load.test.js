@@ -91,6 +91,7 @@ function createHarness({
 
   let tabUpdatedListener;
   let tabRemovedListener;
+  let activeTabId = 1;
 
   // A broadcast used to send to every tab at once. Watching how many messages
   // are outstanding is the only way to see that it no longer does.
@@ -136,11 +137,13 @@ function createHarness({
       },
       query: (queryInfo, callback) => {
         tabQueries.push(queryInfo);
+        // The popup asks for the active tab; everything else is a broadcast
+        const answer = queryInfo && queryInfo.active ? [{ id: activeTabId }] : tabs;
         if (callback) {
-          callback(tabs);
+          callback(answer);
           return undefined;
         }
-        return Promise.resolve(tabs);
+        return Promise.resolve(answer);
       },
       sendMessage: (tabId, message) => {
         tabMessages.push({ tabId, message });
@@ -231,6 +234,10 @@ function createHarness({
     tabMessages,
     tabQueries,
     tabGets,
+    // Which tab the popup is looking at
+    setActiveTab(tabId) {
+      activeTabId = tabId;
+    },
     // Report a tab the way Chrome does as it loads and its title settles
     updateTab(tab) {
       tabUpdatedListener(tab.id, { title: tab.title }, tab);
@@ -293,14 +300,19 @@ function createHarness({
         .filter(entry => entry.message.action === 'showUrlOverlay')
         .map(entry => entry.message.data.url);
     },
-    getFoundUrls() {
+    getFoundUrls(request) {
       return new Promise(resolve => {
         messageListener(
-          { action: 'getFoundUrls', currentTabOnly: false },
+          { action: 'getFoundUrls', currentTabOnly: false, ...request },
           {},
           response => resolve(response.urls)
         );
       });
+    },
+    syncDataSettings(settings) {
+      const oldValue = syncArea.data.dataSettings;
+      syncArea.data.dataSettings = settings;
+      storageListener({ dataSettings: { oldValue, newValue: settings } }, 'sync');
     }
   };
 }
@@ -777,4 +789,198 @@ test('rules backfilled with ids by the migration are the ones matched against', 
   const urls = await harness.getFoundUrls();
   assert.equal(urls.length, 1);
   assert.ok(urls[0].rule.id, 'the captured rule should carry an id');
+});
+
+// The captured URLs used to share one list trimmed to the storage limit, so a
+// noisy tab evicted what every other tab had captured. The popup shows the
+// current tab by default, which made that view almost always empty on a busy
+// profile.
+
+test('a noisy tab does not evict what a quiet tab captured', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, dataSettings: { maxStorageLimit: 10 } }
+  });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/quiet', 2);
+
+  // Far more than the limit, all from one other tab
+  for (let i = 0; i < 50; i += 1) {
+    await harness.request(`https://a.example.com/noisy-${i}`, 3);
+  }
+  await harness.settle();
+
+  harness.setActiveTab(2);
+  const urls = await harness.getFoundUrls({ currentTabOnly: true });
+  assert.deepEqual(plain(urls.map(entry => entry.url)), ['https://a.example.com/quiet']);
+});
+
+test('the limit applies to each tab rather than to everything at once', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, dataSettings: { maxStorageLimit: 5 } }
+  });
+  await harness.settle();
+
+  for (let i = 0; i < 8; i += 1) {
+    await harness.request(`https://a.example.com/two-${i}`, 2);
+    await harness.request(`https://a.example.com/three-${i}`, 3);
+  }
+  await harness.settle();
+
+  harness.setActiveTab(2);
+  const tabTwo = await harness.getFoundUrls({ currentTabOnly: true });
+  harness.setActiveTab(3);
+  const tabThree = await harness.getFoundUrls({ currentTabOnly: true });
+
+  // Each tab keeps its own five, so ten are held where one list kept five
+  assert.equal(tabTwo.length, 5);
+  assert.equal(tabThree.length, 5);
+  assert.deepEqual(plain(tabTwo.map(entry => entry.url)), [
+    'https://a.example.com/two-3',
+    'https://a.example.com/two-4',
+    'https://a.example.com/two-5',
+    'https://a.example.com/two-6',
+    'https://a.example.com/two-7'
+  ]);
+});
+
+test('the view across every tab is still in time order', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/first', 2);
+  await harness.request('https://a.example.com/second', 3);
+  await harness.request('https://a.example.com/third', 2);
+  await harness.request('https://a.example.com/fourth', 3);
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls({ currentTabOnly: false });
+  const timestamps = urls.map(entry => entry.timestamp);
+  assert.deepEqual(plain(timestamps), plain(timestamps).slice().sort((a, b) => a - b));
+  assert.equal(urls.length, 4);
+});
+
+test('tabs beyond the tracked limit are dropped oldest first', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, dataSettings: { maxStorageLimit: 10 } }
+  });
+  await harness.settle();
+
+  // One capture each from more tabs than are tracked
+  for (let tabId = 1; tabId <= 60; tabId += 1) {
+    await harness.request(`https://a.example.com/tab-${tabId}`, tabId);
+  }
+  await harness.settle();
+
+  // The tab that captured first has been quiet the longest
+  harness.setActiveTab(1);
+  assert.deepEqual(plain(await harness.getFoundUrls({ currentTabOnly: true })), []);
+
+  // The most recent ones are still there
+  harness.setActiveTab(60);
+  assert.equal((await harness.getFoundUrls({ currentTabOnly: true })).length, 1);
+
+  // Fifty tabs are still held; the view across every tab is capped separately
+  harness.setActiveTab(11);
+  assert.equal((await harness.getFoundUrls({ currentTabOnly: true })).length, 1);
+  harness.setActiveTab(10);
+  assert.deepEqual(plain(await harness.getFoundUrls({ currentTabOnly: true })), []);
+});
+
+test('a tab that keeps capturing is not dropped for being old', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, dataSettings: { maxStorageLimit: 10 } }
+  });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/early', 1);
+
+  for (let tabId = 2; tabId <= 60; tabId += 1) {
+    await harness.request(`https://a.example.com/tab-${tabId}`, tabId);
+    // Tab 1 keeps going, so it is never the least recently active
+    await harness.request(`https://a.example.com/still-here-${tabId}`, 1);
+  }
+  await harness.settle();
+
+  harness.setActiveTab(1);
+  const urls = await harness.getFoundUrls({ currentTabOnly: true });
+  assert.ok(urls.length > 0, 'a tab that keeps capturing should survive');
+});
+
+test('the popup is never handed more entries than the limit', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, dataSettings: { maxStorageLimit: 10 } }
+  });
+  await harness.settle();
+
+  for (let tabId = 2; tabId <= 6; tabId += 1) {
+    for (let i = 0; i < 10; i += 1) {
+      await harness.request(`https://a.example.com/${tabId}-${i}`, tabId);
+    }
+  }
+  await harness.settle();
+
+  // Fifty are held across the tabs, but the popup builds a row per entry
+  const urls = await harness.getFoundUrls({ currentTabOnly: false });
+  assert.equal(urls.length, 10);
+});
+
+test('lowering the limit trims every tab straight away', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, dataSettings: { maxStorageLimit: 10 } }
+  });
+  await harness.settle();
+
+  for (let i = 0; i < 10; i += 1) {
+    await harness.request(`https://a.example.com/two-${i}`, 2);
+    await harness.request(`https://a.example.com/three-${i}`, 3);
+  }
+  await harness.settle();
+
+  harness.syncDataSettings({ maxStorageLimit: 2 });
+  await harness.settle();
+
+  harness.setActiveTab(2);
+  assert.equal((await harness.getFoundUrls({ currentTabOnly: true })).length, 2);
+  harness.setActiveTab(3);
+  assert.equal((await harness.getFoundUrls({ currentTabOnly: true })).length, 2);
+});
+
+test('a backup written before the lists were split per tab still restores', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    // The flat shape an older version wrote
+    session: {
+      foundUrls: [
+        { url: 'https://a.example.com/1', timestamp: 1, tabId: 2, rule: { id: 'rule-a' } },
+        { url: 'https://a.example.com/2', timestamp: 2, tabId: 3, rule: { id: 'rule-a' } },
+        { url: 'https://a.example.com/3', timestamp: 3, tabId: 2, rule: { id: 'rule-a' } }
+      ]
+    }
+  });
+  await harness.settle();
+
+  harness.setActiveTab(2);
+  const tabTwo = await harness.getFoundUrls({ currentTabOnly: true });
+  assert.deepEqual(plain(tabTwo.map(entry => entry.url)), [
+    'https://a.example.com/1',
+    'https://a.example.com/3'
+  ]);
+
+  assert.equal((await harness.getFoundUrls({ currentTabOnly: false })).length, 3);
+});
+
+test('the backup is written flat so it can be read back', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 2);
+  await harness.request('https://a.example.com/two', 3);
+  await harness.settle();
+  harness.runTimers();
+  await harness.settle();
+
+  const written = harness.sessionArea.writes[0].foundUrls;
+  assert.equal(written.length, 2);
+  assert.deepEqual(plain(written.map(entry => entry.tabId)), [2, 3]);
 });

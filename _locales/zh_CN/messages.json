@@ -563,7 +563,7 @@
     "description": "More options button text in Simplified Chinese"
   },
   "maxStorageTitle": {
-    "message": "匹配URL最大存储数量",
+    "message": "每个标签页匹配URL最大存储数量",
     "description": "Data management title in Simplified Chinese"
   },
   "maxStorageLimit": {
@@ -571,7 +571,7 @@
     "description": "Maximum storage limit field label in Simplified Chinese"
   },
   "maxStorageLimitHelpText": {
-    "message": "内存中存储的匹配URL最大数量 (10-1000)",
+    "message": "每个标签页保留的匹配URL最大数量 (10-1000)",
     "description": "Help text for max storage limit field in Simplified Chinese"
   },
   "dataManagementExplanationTitle": {
@@ -583,7 +583,7 @@
     "description": "Data storage limit label in Simplified Chinese"
   },
   "dataStorageLimitExplanation": {
-    "message": "当达到上限时，较旧的URL会自动被移除以腾出空间给新的URL",
+    "message": "每个标签页各自保留自己的URL，流量大的标签页不会再挤掉其他标签页找到的结果。当某个标签页达到上限时，会移除该标签页较旧的URL以腾出空间",
     "description": "Data storage limit explanation in Simplified Chinese"
   },
   "dataPerformanceLabel": {
