@@ -83,11 +83,15 @@ function createElement(tagName = 'div') {
     }
   };
 
+  // Kept rather than discarded, so a test can read back the markup that was
+  // built and check what was escaped
+  let html = '';
   Object.defineProperty(element, 'innerHTML', {
     get() {
-      return '';
+      return html;
     },
-    set() {
+    set(value) {
+      html = value;
       element.children.length = 0;
     }
   });
@@ -147,12 +151,7 @@ function createContentHarness({ storedOverlaySettings } = {}) {
     }
   };
 
-  const contentSource = fs.readFileSync(
-    path.join(__dirname, '..', 'content.js'),
-    'utf8'
-  );
-
-  vm.runInNewContext(contentSource, {
+  const context = vm.createContext({
     chrome,
     clearTimeout() {},
     console,
@@ -166,7 +165,17 @@ function createContentHarness({ storedOverlaySettings } = {}) {
     setTimeout() {
       return 0;
     }
-  }, { filename: 'content.js' });
+  });
+
+  // The manifest lists the shared escaping helper before the content script, so
+  // the context needs it in the same order
+  ['escape-html.js', 'content.js'].forEach(file => {
+    vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', file), 'utf8'),
+      context,
+      { filename: file }
+    );
+  });
 
   return {
     runtimeMessages,
@@ -189,6 +198,11 @@ function createContentHarness({ storedOverlaySettings } = {}) {
           rule: { id: ruleId, name: ruleId, type: 'contains', value: ruleId }
         }
       });
+    },
+    // The markup of the overlay added most recently
+    lastOverlayHtml() {
+      const container = body.children[0];
+      return container.children[container.children.length - 1].innerHTML;
     },
     // Rule ids of the overlays currently on the page
     visibleRuleIds() {
@@ -320,4 +334,41 @@ test('the built in settings still apply when storage holds none', () => {
 
   // The default limit of five
   assert.equal(content.visibleRuleIds().length, 5);
+});
+
+// The overlay markup is built as a string and assigned through innerHTML. A
+// rule name and value can come from an imported settings file, and the URL is
+// whatever the page asked the network for.
+
+test('a URL that looks like markup is escaped into the overlay', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a', 'https://example.com/?q=<img src=x onerror=alert(1)>');
+
+  const overlay = content.lastOverlayHtml();
+  assert.ok(!overlay.includes('<img'), 'the tag should not survive into the markup');
+  assert.ok(overlay.includes('&lt;img src=x onerror=alert(1)&gt;'));
+});
+
+test('a rule name and value that look like markup are escaped into the overlay', () => {
+  const content = createContentHarness();
+
+  content.send({
+    action: 'showUrlOverlay',
+    data: {
+      url: 'https://example.com/one',
+      timestamp: 1,
+      rule: {
+        id: 'rule-a',
+        name: '<script>alert(1)</script>',
+        type: 'contains',
+        value: '"><img src=x onerror=alert(2)>'
+      }
+    }
+  });
+
+  const overlay = content.lastOverlayHtml();
+  assert.ok(!overlay.includes('<script>'), 'the script tag should not survive');
+  assert.ok(!overlay.includes('<img'), 'the image tag should not survive');
+  assert.ok(overlay.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
 });

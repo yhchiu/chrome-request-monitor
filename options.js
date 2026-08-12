@@ -1,5 +1,6 @@
 // Options page script for Chrome extension
-// createRuleId comes from rule-id.js, loaded before this file.
+// createRuleId comes from rule-id.js and escapeHtml from escape-html.js, both
+// loaded before this file.
 
 // Which rules should be shown after a rule is added. A rule the user has just
 // created should be visible straight away, so it joins a narrowed selection
@@ -399,9 +400,11 @@ document.addEventListener('DOMContentLoaded', function() {
       info: 'ℹ️'
     };
     
+    // Several callers build the message from a rule name, which the user can
+    // type and an imported file can supply
     notice.innerHTML = `
       <div class="overlay-notice-icon">${icons[type] || icons.success}</div>
-      <div class="overlay-notice-content">${message}</div>
+      <div class="overlay-notice-content">${escapeHtml(message)}</div>
       <button class="overlay-notice-close" aria-label="關閉">×</button>
       <div class="overlay-notice-progress"></div>
     `;
@@ -744,10 +747,10 @@ document.addEventListener('DOMContentLoaded', function() {
         ruleItem.innerHTML = `
           <div class="rule-info">
             <div class="rule-name">
-              ${rule.name}
-              <span class="rule-type">${typeLabels[rule.type] || rule.type}</span>
+              ${escapeHtml(rule.name)}
+              <span class="rule-type">${escapeHtml(typeLabels[rule.type] || rule.type)}</span>
             </div>
-            <div class="rule-details">${rule.value}</div>
+            <div class="rule-details">${escapeHtml(rule.value)}</div>
           </div>
           <div class="rule-actions">
             <button class="btn btn-primary btn-sm edit-rule" data-index="${index}">

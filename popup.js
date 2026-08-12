@@ -1,16 +1,5 @@
 // Popup script for Chrome extension
-
-// Helper function to escape HTML to prevent XSS
-function escapeHtml(text) {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-  return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
-}
+// escapeHtml comes from escape-html.js, loaded before this file.
 
 document.addEventListener('DOMContentLoaded', function() {
   const urlList = document.getElementById('urlList');
@@ -310,10 +299,10 @@ document.addEventListener('DOMContentLoaded', function() {
       urlItem.innerHTML = `
         <div class="tab-title" title="${escapeHtml(tabTitle)}" data-tab-prefix="${escapeHtml(tabPrefix)}">${escapeHtml(displayTitle)}</div>
         <div class="url-meta">
-          <span>${getMessage('rule')}: ${urlData.rule.name || urlData.rule.type}</span>
+          <span>${getMessage('rule')}: ${escapeHtml(urlData.rule.name || urlData.rule.type)}</span>
           <span>${timeString}</span>
         </div>
-        <div class="url-text">${urlData.url}</div>
+        <div class="url-text">${escapeHtml(urlData.url)}</div>
         <div class="url-actions">
           <button class="copy-btn" data-url="${encodeURIComponent(urlData.url)}">${getMessage('copyUrl')}</button>
         </div>

@@ -45,11 +45,15 @@ function createElement(tagName = 'div') {
     }
   };
 
+  // Kept rather than discarded, so a test can read back the markup that was
+  // built and check what was escaped
+  let html = '';
   Object.defineProperty(element, 'innerHTML', {
     get() {
-      return '';
+      return html;
     },
-    set() {
+    set(value) {
+      html = value;
       element.children.length = 0;
     }
   });
@@ -60,7 +64,8 @@ function createElement(tagName = 'div') {
 function createPopupHarness({
   rules = [],
   focusedRuleIds = null,
-  deferRules = false
+  deferRules = false,
+  foundUrls = []
 } = {}) {
   const domReadyListeners = [];
   const elements = new Map();
@@ -92,7 +97,7 @@ function createPopupHarness({
       sendMessage(message, callback) {
         messages.push(message);
         if (callback) {
-          callback(message.action === 'getFoundUrls' ? { urls: [] } : { success: true });
+          callback(message.action === 'getFoundUrls' ? { urls: foundUrls } : { success: true });
         }
       }
     },
@@ -122,12 +127,7 @@ function createPopupHarness({
     }
   };
 
-  const popupSource = fs.readFileSync(
-    path.join(__dirname, '..', 'popup.js'),
-    'utf8'
-  );
-
-  vm.runInNewContext(popupSource, {
+  const context = vm.createContext({
     chrome,
     clearTimeout,
     confirm: () => true,
@@ -142,11 +142,27 @@ function createPopupHarness({
       }
     },
     setTimeout
-  }, { filename: 'popup.js' });
+  });
+
+  // The popup page loads the shared escaping helper first, so the context needs
+  // it too
+  ['escape-html.js', 'popup.js'].forEach(file => {
+    vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', file), 'utf8'),
+      context,
+      { filename: file }
+    );
+  });
 
   return {
     element(id) {
       return document.getElementById(id);
+    },
+    // The markup the URL list was rendered with
+    urlListHtml() {
+      return document.getElementById('urlList').children
+        .map(item => item.innerHTML)
+        .join('');
     },
     getFoundUrlsRequests() {
       return messages.filter(message => message.action === 'getFoundUrls');
@@ -370,4 +386,42 @@ test('turning monitoring back on restores the selection', () => {
 
   // Turning the monitor off and on again says nothing about the selection
   assert.deepEqual(popup.getFocusUpdates(), []);
+});
+
+// The URL list is built as a string and assigned through innerHTML. The URL is
+// whatever a page asked the network for, and the rule name can come from an
+// imported settings file.
+
+test('a URL that looks like markup is escaped into the list', () => {
+  const popup = openPopup({
+    rules: THREE_RULES,
+    foundUrls: [{
+      url: 'https://example.com/?q=<img src=x onerror=alert(1)>',
+      timestamp: 1,
+      tabId: 1,
+      tabTitle: 'A tab',
+      rule: { id: 'rule-a', name: 'A', type: 'contains' }
+    }]
+  });
+
+  const html = popup.urlListHtml();
+  assert.ok(!html.includes('<img'), 'the tag should not survive into the markup');
+  assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+});
+
+test('a rule name that looks like markup is escaped into the list', () => {
+  const popup = openPopup({
+    rules: THREE_RULES,
+    foundUrls: [{
+      url: 'https://example.com/one',
+      timestamp: 1,
+      tabId: 1,
+      tabTitle: 'A tab',
+      rule: { id: 'rule-a', name: '<script>alert(1)</script>', type: 'contains' }
+    }]
+  });
+
+  const html = popup.urlListHtml();
+  assert.ok(!html.includes('<script>'), 'the script tag should not survive');
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
 });

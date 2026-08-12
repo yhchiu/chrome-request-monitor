@@ -1,4 +1,5 @@
 // Content script for showing URL overlays on web pages
+// escapeHtml comes from escape-html.js, listed before this file in the manifest.
 let overlayContainer = null;
 let activeOverlays = [];
 let overlaySettings = {
@@ -245,12 +246,12 @@ function showUrlOverlay(urlData) {
         <span id="timeout-indicator" style="font-size: 10px; color: rgba(255, 255, 255, 0.6); display: none;" data-i18n="overlayPaused">⏸️ Paused</span>
       </div>
       <div style="word-break: break-all; background: rgba(255, 255, 255, 0.1); padding: 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">
-        ${urlData.url}
+        ${escapeHtml(urlData.url)}
       </div>
     </div>
     <div style="margin-bottom: 8px;">
       <div style="color: #98c379; font-size: 12px;">
-        <span data-i18n="rule">Rule</span>: ${urlData.rule.name || urlData.rule.type} - ${urlData.rule.value}
+        <span data-i18n="rule">Rule</span>: ${escapeHtml(urlData.rule.name || urlData.rule.type)} - ${escapeHtml(urlData.rule.value)}
       </div>
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
