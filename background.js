@@ -598,12 +598,40 @@ chrome.storage.sync.get(['dataSettings'], (result) => {
 // restart: the map starts empty every time and fills itself back in.
 const tabInfoCache = new Map();
 
+// A ceiling on how many are kept, so what is held follows the tabs this
+// extension captures from rather than the number of tabs the user has open.
+// Every tab reports itself as it loads, so without this a profile with ten
+// thousand tabs open kept ten thousand titles and urls resident for as long as
+// the Service Worker lived.
+//
+// Comfortably wider than MAX_TRACKED_TABS, since the tabs holding captured URLs
+// are the ones whose titles are worth having and should never be what an
+// eviction reaches. Dropping an entry only ever costs the optimization: the
+// next match for that tab asks the browser once and puts it back.
+const MAX_CACHED_TABS = 200;
+
+// Move a tab to the end, which leaves the least recently used one first. Same
+// approach as the bound on overlayTabIds.
+//
+// Reading counts as using it. A tab that captures steadily may have settled its
+// title long ago and stopped reporting itself, and going by writes alone would
+// let tabs that are merely noisy evict the very tab whose title is being asked
+// for.
+function touchCachedTab(tabId, info) {
+  tabInfoCache.delete(tabId);
+  tabInfoCache.set(tabId, info);
+
+  if (tabInfoCache.size > MAX_CACHED_TABS) {
+    tabInfoCache.delete(tabInfoCache.keys().next().value);
+  }
+}
+
 function rememberTab(tab) {
   if (!tab || typeof tab.id !== 'number' || tab.id < 0) {
     return;
   }
 
-  tabInfoCache.set(tab.id, {
+  touchCachedTab(tab.id, {
     title: tab.title || '',
     url: tab.url || ''
   });
@@ -620,6 +648,7 @@ async function getTabInfo(tabId) {
 
   const cached = tabInfoCache.get(tabId);
   if (cached) {
+    touchCachedTab(tabId, cached);
     return cached;
   }
 
@@ -634,11 +663,19 @@ async function getTabInfo(tabId) {
 }
 
 // Keep the cache current. A title changes as a page loads, and the entry has to
-// go when the tab does or the map would grow for as long as the Service Worker
-// lives.
+// go when the tab does rather than being left behind.
+//
+// Narrowed to the two properties rememberTab actually reads. Unfiltered, Chrome
+// delivers an event for every change to every tab, loading status, favicon,
+// audio, pinning and the rest included, and each one is a message carrying a
+// whole tab across to a Service Worker it may have to start first. How much
+// this listener can do with them does not grow with the number of tabs open.
+// The number of messages does.
+const TAB_UPDATE_FILTER = { properties: ['title', 'url'] };
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   rememberTab(tab);
-});
+}, TAB_UPDATE_FILTER);
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabInfoCache.delete(tabId);

@@ -113,6 +113,7 @@ function createHarness({
   const timers = [];
 
   let tabUpdatedListener;
+  let tabUpdatedFilter;
   let tabRemovedListener;
   let activeTabId = 1;
 
@@ -189,8 +190,9 @@ function createHarness({
         });
       },
       onUpdated: {
-        addListener(listener) {
+        addListener(listener, filter) {
           tabUpdatedListener = listener;
+          tabUpdatedFilter = filter;
         }
       },
       onRemoved: {
@@ -276,6 +278,10 @@ function createHarness({
     // Report a tab the way Chrome does as it loads and its title settles
     updateTab(tab) {
       tabUpdatedListener(tab.id, { title: tab.title }, tab);
+    },
+    // Which tab updates the listener asked Chrome to deliver
+    tabUpdateFilter() {
+      return tabUpdatedFilter;
     },
     removeTab(tabId) {
       tabRemovedListener(tabId, { windowId: 1, isWindowClosing: false });
@@ -880,6 +886,56 @@ test('a title that changes as the page loads is the one captured', async () => {
 
   const urls = await harness.getFoundUrls();
   assert.equal(urls[0].tabTitle, 'Settled');
+});
+
+// The cache is filled by every tab reporting itself, not only by the tabs that
+// capture anything, so its size followed the number of tabs the user had open
+// rather than the number this extension has any use for.
+
+test('the tab listener asks only for the properties the cache reads', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  // Unfiltered, every change to every tab is a message carrying a whole tab
+  // across, and only these two are ever read out of it
+  assert.deepEqual(plain(harness.tabUpdateFilter().properties), ['title', 'url']);
+});
+
+test('the tab titles kept are bounded rather than one per tab open', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  for (let tabId = 1; tabId <= 300; tabId += 1) {
+    harness.updateTab({ id: tabId, title: `tab ${tabId}`, url: `https://example.com/${tabId}` });
+  }
+
+  // The most recent are still known, so a match there asks the browser nothing
+  await harness.request('https://a.example.com/recent', 300);
+  await harness.settle();
+  assert.deepEqual(plain(harness.tabGets), []);
+
+  // The earliest were dropped, which only costs the one question
+  await harness.request('https://a.example.com/early', 1);
+  await harness.settle();
+  assert.deepEqual(plain(harness.tabGets), [1]);
+});
+
+test('a tab that keeps capturing is not evicted by tabs that only report themselves', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  // Its title settled as it loaded, so it never reports itself again
+  harness.updateTab({ id: 1, title: 'Steady', url: 'https://example.com/steady' });
+
+  for (let tabId = 2; tabId <= 300; tabId += 1) {
+    await harness.request(`https://a.example.com/still-here-${tabId}`, 1);
+    harness.updateTab({ id: tabId, title: `tab ${tabId}`, url: `https://example.com/${tabId}` });
+  }
+  await harness.settle();
+
+  // Reading an entry is what keeps it. Going by writes alone would let the
+  // noisy tabs evict the one whose title is actually being asked for.
+  assert.deepEqual(plain(harness.tabGets), []);
 });
 
 test('a closed tab is forgotten rather than kept for the life of the worker', async () => {
