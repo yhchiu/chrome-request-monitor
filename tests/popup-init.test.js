@@ -72,6 +72,10 @@ function createPopupHarness({
   const messages = [];
   let monitorSettingsCallback;
   let rulesCallback;
+  let storageListener;
+  // What the background would answer with, so a test can capture something new
+  // while the popup is open
+  let capturedUrls = foundUrls;
 
   const document = {
     addEventListener(type, listener) {
@@ -97,7 +101,7 @@ function createPopupHarness({
       sendMessage(message, callback) {
         messages.push(message);
         if (callback) {
-          callback(message.action === 'getFoundUrls' ? { urls: foundUrls } : { success: true });
+          callback(message.action === 'getFoundUrls' ? { urls: capturedUrls } : { success: true });
         }
       }
     },
@@ -123,6 +127,11 @@ function createPopupHarness({
           callback({ focusedRuleIds: focusedRuleIds });
         },
         set() {}
+      },
+      onChanged: {
+        addListener(listener) {
+          storageListener = listener;
+        }
       }
     }
   };
@@ -204,6 +213,26 @@ function createPopupHarness({
       const toggle = document.getElementById('monitorToggle');
       toggle.checked = isEnabled;
       toggle.dispatch('change');
+    },
+    // Press the refresh button
+    refresh() {
+      document.getElementById('refreshBtn').dispatch('click');
+    },
+    // Whether the list is currently hidden behind the loading indicator
+    isLoadingShown() {
+      return document.getElementById('loading').style.display === 'block';
+    },
+    // Capture a URL the way the background does: it lands in what the
+    // background answers with, and its backup to session storage is what tells
+    // the popup something happened.
+    capture(urls) {
+      capturedUrls = urls;
+      this.changeStorage({ foundUrls: { newValue: urls } }, 'session');
+    },
+    // Deliver a storage change the way Chrome does
+    changeStorage(changes, areaName) {
+      assert.ok(storageListener, 'no storage listener registered');
+      storageListener(changes, areaName);
     }
   };
 }
@@ -386,6 +415,88 @@ test('turning monitoring back on restores the selection', () => {
 
   // Turning the monitor off and on again says nothing about the selection
   assert.deepEqual(popup.getFocusUpdates(), []);
+});
+
+// The popup used to query once when it opened and then sit still, so anything
+// captured while it was open only appeared after the refresh button was
+// pressed, even though the page overlay for the same request had already shown.
+
+const ONE_CAPTURE = [{
+  url: 'https://api.example.com/first',
+  timestamp: 1,
+  tabId: 1,
+  tabTitle: 'A tab',
+  rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
+}];
+
+const TWO_CAPTURES = ONE_CAPTURE.concat([{
+  url: 'https://api.example.com/second',
+  timestamp: 2,
+  tabId: 1,
+  tabTitle: 'A tab',
+  rules: [{ id: 'rule-a', name: 'A', type: 'contains' }]
+}]);
+
+test('a URL captured while the popup is open shows without a refresh', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
+  assert.ok(!popup.urlListHtml().includes('/second'));
+
+  popup.capture(TWO_CAPTURES);
+
+  assert.equal(popup.getFoundUrlsRequests().length, 2);
+  assert.ok(popup.urlListHtml().includes('/second'), 'the new URL should be listed');
+});
+
+test('an automatic reload does not blank the list out first', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  popup.capture(TWO_CAPTURES);
+
+  // The rows are replaced once the answer is back rather than hidden behind
+  // the loading indicator, which would make the list flicker while it is read.
+  assert.equal(popup.isLoadingShown(), false);
+  assert.ok(popup.urlListHtml().includes('/second'));
+});
+
+test('a change to another storage area is ignored', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  popup.changeStorage({ foundUrls: { newValue: TWO_CAPTURES } }, 'local');
+  popup.changeStorage({ urlRules: { newValue: [] } }, 'sync');
+
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
+});
+
+test('a change to another session key is ignored', () => {
+  const popup = openPopup({ rules: THREE_RULES, foundUrls: ONE_CAPTURE });
+
+  popup.changeStorage({ somethingElse: { newValue: 1 } }, 'session');
+
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
+});
+
+test('a capture before the stored settings are back does not query early', () => {
+  const popup = createPopupHarness({
+    rules: THREE_RULES,
+    focusedRuleIds: ['rule-b'],
+    deferRules: true,
+    foundUrls: ONE_CAPTURE
+  });
+
+  popup.openPopup();
+  popup.resolveMonitorSettings({ monitorEnabled: true });
+
+  // The rules are still on their way, so the focus this would query against is
+  // not the one the user chose
+  popup.capture(TWO_CAPTURES);
+  assert.deepEqual(popup.getFoundUrlsRequests(), []);
+
+  // Once everything is back, init's own load picks the capture up
+  popup.resolveRules(THREE_RULES);
+  assert.equal(popup.getFoundUrlsRequests().length, 1);
+  assert.ok(popup.urlListHtml().includes('/second'));
 });
 
 test('a row names every rule the URL matched', () => {

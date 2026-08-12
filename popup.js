@@ -72,10 +72,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Whether every stored setting is back, so a query runs against the focus the
+  // user actually chose rather than the defaults this page starts with
+  function isReady() {
+    return monitorSettingsLoaded && focusedRulesLoaded && rulesLoaded;
+  }
+
   // Load URLs once the focus and the rule list are both known, so a focus
   // pointing at a deleted rule is caught before the first query.
   function loadUrlsWhenReady() {
-    if (!monitorSettingsLoaded || !focusedRulesLoaded || !rulesLoaded) {
+    if (!isReady()) {
       return;
     }
 
@@ -246,12 +252,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Load and display URLs
-  function loadUrls() {
-    loading.style.display = 'block';
-    urlList.style.display = 'none';
-    emptyState.style.display = 'none';
-    
+  // Load and display URLs.
+  //
+  // A quiet load is one the user did not ask for, so it leaves what is on
+  // screen alone until the answer is back. Blanking the list out behind the
+  // loading indicator is right for a button press, but doing it every time
+  // something new is captured would make the list flicker as the user reads it.
+  function loadUrls({ quiet = false } = {}) {
+    if (!quiet) {
+      loading.style.display = 'block';
+      urlList.style.display = 'none';
+      emptyState.style.display = 'none';
+    }
+
     // Check if we should filter by current tab only (default: true)
     const currentTabOnly = tabFilterToggle ? tabFilterToggle.checked : true;
     
@@ -357,6 +370,28 @@ document.addEventListener('DOMContentLoaded', function() {
     saveFocusedRules(loadUrls);
   });
   
+  // Show what has just been captured without waiting for the refresh button.
+  //
+  // The background already backs the captured URLs up to session storage on a
+  // short timer, so that write is a signal this page can listen for. Nothing
+  // new is sent for it: no message per capture that would be wasted whenever
+  // the popup is closed, and no polling that would wake the Service Worker just
+  // to be told nothing has happened. The write is coalesced, so a busy page
+  // reloads the list about once a second rather than once per request.
+  chrome.storage.onChanged.addListener(function(changes, areaName) {
+    if (areaName !== 'session' || !changes.foundUrls) {
+      return;
+    }
+
+    // Before the stored settings are back there is nothing to update: the load
+    // that init is already waiting to run will pick these up.
+    if (!isReady()) {
+      return;
+    }
+
+    loadUrls({ quiet: true });
+  });
+
   // Refresh button
   refreshBtn.addEventListener('click', function() {
     loadUrls();
