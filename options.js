@@ -81,6 +81,17 @@ document.addEventListener('DOMContentLoaded', function() {
   // Data management elements
   const maxStorageLimit = document.getElementById('maxStorageLimit');
   const saveDataButton = document.getElementById('saveDataButton');
+
+  // Request type elements
+  const requestTypeList = document.getElementById('requestTypeList');
+  const saveRequestTypesButton = document.getElementById('saveRequestTypesButton');
+  const selectAllRequestTypes = document.getElementById('selectAllRequestTypes');
+  const selectCommonRequestTypes = document.getElementById('selectCommonRequestTypes');
+
+  // The types a rule is most often written against. Offered as a shortcut
+  // because working out which of thirteen to untick is the tedious part of
+  // narrowing, and these are the ones that carry a URL worth matching.
+  const COMMON_REQUEST_TYPES = ['main_frame', 'sub_frame', 'xmlhttprequest', 'websocket', 'other'];
   
   // Import/Export elements
   const exportButton = document.getElementById('exportButton');
@@ -513,6 +524,77 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Build the list of request types that can be watched
+  function renderRequestTypeList() {
+    requestTypeList.innerHTML = '';
+
+    KNOWN_REQUEST_TYPES.forEach(type => {
+      const option = document.createElement('label');
+      option.className = 'request-type-option';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = type;
+      // Watching everything is the default, so everything starts ticked
+      checkbox.checked = true;
+
+      const label = document.createElement('code');
+      label.textContent = type;
+
+      option.appendChild(checkbox);
+      option.appendChild(label);
+      requestTypeList.appendChild(option);
+    });
+  }
+
+  function requestTypeCheckboxes() {
+    return Array.from(requestTypeList.querySelectorAll('input[type="checkbox"]'));
+  }
+
+  function setCheckedRequestTypes(types) {
+    // null means every type, which is every box ticked
+    requestTypeCheckboxes().forEach(checkbox => {
+      checkbox.checked = types === null || types.includes(checkbox.value);
+    });
+  }
+
+  function checkedRequestTypes() {
+    return requestTypeCheckboxes()
+      .filter(checkbox => checkbox.checked)
+      .map(checkbox => checkbox.value);
+  }
+
+  // Load which request types are being watched
+  function loadRequestTypes() {
+    chrome.storage.sync.get(['requestTypes'], function(result) {
+      setCheckedRequestTypes(normalizeRequestTypes(result.requestTypes));
+    });
+  }
+
+  function saveRequestTypesFunction() {
+    const selected = checkedRequestTypes();
+
+    // Watching nothing would stop the monitor finding anything at all, which
+    // looks exactly like a broken extension. Say so rather than save it.
+    if (selected.length === 0) {
+      showAlert(getMessage('errorNoRequestTypes'), 'error');
+      return;
+    }
+
+    // Stored through the same normalization the background reads it with, so
+    // every type ticked is stored as "everything" rather than as a list that
+    // happens to name them all
+    const types = normalizeRequestTypes(selected);
+
+    chrome.storage.sync.set({ requestTypes: types }, function() {
+      if (chrome.runtime.lastError) {
+        showAlert(getMessage('errorSavingRequestTypes', [chrome.runtime.lastError.message]), 'error');
+      } else {
+        showAlert(getMessage('settingsSaved'));
+      }
+    });
+  }
+
   // Load data management settings
   function loadDataSettings() {
     chrome.storage.sync.get(['dataSettings'], function(result) {
@@ -594,11 +676,14 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Export settings function
   function exportSettings() {
-    chrome.storage.sync.get(['urlRules', 'overlaySettings', 'dataSettings'], function(result) {
+    chrome.storage.sync.get(['urlRules', 'overlaySettings', 'dataSettings', 'requestTypes'], function(result) {
       const settings = {
         exportDate: new Date().toISOString(),
         extensionVersion: chrome.runtime.getManifest().version,
         urlRules: result.urlRules || [],
+        // null means every type, and it exports as null so an import reads it
+        // back the same way
+        requestTypes: normalizeRequestTypes(result.requestTypes),
         overlaySettings: result.overlaySettings || {
           maxOverlays: 5,
           timeoutSeconds: 30,
@@ -679,6 +764,14 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
         
+        // Prepare the request types. An export made before this setting
+        // existed has no key at all, which is left alone rather than reset.
+        if ('requestTypes' in settings) {
+          // Anything unrecognized in the file is dropped here rather than
+          // reaching a webRequest filter, where it would throw
+          settingsToSave.requestTypes = normalizeRequestTypes(settings.requestTypes);
+        }
+
         // Validate and prepare data settings
         if (settings.dataSettings && typeof settings.dataSettings === 'object') {
           const data = settings.dataSettings;
@@ -969,12 +1062,21 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initial load
   loadRules();
+  renderRequestTypeList();
+  loadRequestTypes();
   loadOverlaySettings();
   loadDataSettings();
-  
+
   // Settings event listeners
   saveButton.addEventListener('click', saveSettingsFunction);
   saveDataButton.addEventListener('click', saveDataSettingsFunction);
+  saveRequestTypesButton.addEventListener('click', saveRequestTypesFunction);
+  selectAllRequestTypes.addEventListener('click', function() {
+    setCheckedRequestTypes(null);
+  });
+  selectCommonRequestTypes.addEventListener('click', function() {
+    setCheckedRequestTypes(COMMON_REQUEST_TYPES);
+  });
   
   // Import/Export event listeners
   exportButton.addEventListener('click', exportSettings);

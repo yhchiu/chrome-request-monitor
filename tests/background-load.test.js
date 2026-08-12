@@ -97,7 +97,10 @@ function createHarness({
   // Tab ids that no longer exist, so asking about them throws
   missingTabIds = [],
   // Keep the restore of the captured URLs open, so a request can arrive first
-  holdSessionReads = false
+  holdSessionReads = false,
+  // Make a narrowed filter throw, the way Chrome does for a type it does not
+  // know
+  rejectNarrowFilter = false
 } = {}) {
   const syncArea = createStorageArea(sync);
   const localArea = createStorageArea(local);
@@ -120,6 +123,7 @@ function createHarness({
 
   let messageListener;
   let requestListener;
+  const requestFilters = [];
   let storageListener;
 
   const chrome = {
@@ -197,8 +201,17 @@ function createHarness({
     },
     webRequest: {
       onBeforeRequest: {
-        addListener(listener) {
+        addListener(listener, filter) {
+          if (rejectNarrowFilter && filter && filter.types) {
+            throw new Error('Invalid value for argument 2. Unknown request type.');
+          }
           requestListener = listener;
+          requestFilters.push(filter);
+        },
+        // The filter is fixed when the listener is registered, so narrowing it
+        // means taking the listener off and putting it back
+        removeListener() {
+          requestListener = null;
         }
       }
     }
@@ -285,13 +298,18 @@ function createHarness({
         await new Promise(resolve => setImmediate(resolve));
       }
     },
-    async request(url, tabId = 1) {
-      await requestListener({ url, tabId });
+    requestFilters,
+    // Whether anything is registered to receive requests at all
+    hasRequestListener() {
+      return Boolean(requestListener);
+    },
+    async request(url, tabId = 1, type = 'xmlhttprequest') {
+      await requestListener({ url, tabId, type });
     },
     // Start a request without waiting for it, so a test can look at what the
     // background did while the request is still being handled
-    startRequest(url, tabId = 1) {
-      return requestListener({ url, tabId });
+    startRequest(url, tabId = 1, type = 'xmlhttprequest') {
+      return requestListener({ url, tabId, type });
     },
     // Let a held session storage area answer its reads
     releaseSessionReads() {
@@ -302,6 +320,11 @@ function createHarness({
       const oldValue = syncArea.data.urlRules;
       syncArea.data.urlRules = rules;
       storageListener({ urlRules: { oldValue, newValue: rules } }, 'sync');
+    },
+    syncRequestTypes(types) {
+      const oldValue = syncArea.data.requestTypes;
+      syncArea.data.requestTypes = types;
+      storageListener({ requestTypes: { oldValue, newValue: types } }, 'sync');
     },
     syncOverlaySettings(settings) {
       const oldValue = syncArea.data.overlaySettings;
@@ -1059,4 +1082,156 @@ test('nothing is decided about a request until the restore has finished', async 
   await harness.settle();
 
   assert.deepEqual(harness.overlayUrls(), ['https://a.example.com/one']);
+});
+
+// Rules are only checked against the request types the user asked to watch.
+// The handler decides, but the listener's filter is narrowed to match so Chrome
+// stops delivering the rest at all.
+
+test('every type is watched when nothing is stored', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 1, 'image');
+  await harness.request('https://a.example.com/two', 1, 'ping');
+  await harness.settle();
+
+  assert.equal((await harness.getFoundUrls()).length, 2);
+});
+
+test('the filter is left wide when every type is watched', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  // Re-registering for a filter that is already right would only churn
+  assert.equal(harness.requestFilters.length, 1);
+  assert.equal(harness.requestFilters[0].types, undefined);
+});
+
+test('a request of a type that is not watched is ignored', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame', 'xmlhttprequest'] }
+  });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/image', 1, 'image');
+  await harness.settle();
+
+  assert.deepEqual(plain(await harness.getFoundUrls()), []);
+  assert.deepEqual(harness.overlayUrls(), []);
+});
+
+test('a request of a watched type is still captured', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame', 'xmlhttprequest'] }
+  });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/api', 1, 'xmlhttprequest');
+  await harness.settle();
+
+  assert.equal((await harness.getFoundUrls()).length, 1);
+});
+
+test('the listener is re-registered with the narrowed filter', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame', 'xmlhttprequest'] }
+  });
+  await harness.settle();
+
+  // Wide first, because the listener has to be registered before the stored
+  // types can be read, then narrowed
+  assert.equal(harness.requestFilters.length, 2);
+  assert.equal(harness.requestFilters[0].types, undefined);
+  assert.deepEqual(plain(harness.requestFilters[1].types), ['main_frame', 'xmlhttprequest']);
+});
+
+test('a request arriving before the types are read is still judged by them', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame'] }
+  });
+
+  // The wide filter is in force this early, so the handler is what has to catch
+  // this one
+  const pending = harness.startRequest('https://a.example.com/image', 1, 'image');
+  await pending;
+  await harness.settle();
+
+  assert.deepEqual(plain(await harness.getFoundUrls()), []);
+});
+
+test('changing the watched types narrows the filter again', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.syncRequestTypes(['main_frame']);
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.requestFilters[harness.requestFilters.length - 1].types), ['main_frame']);
+
+  await harness.request('https://a.example.com/image', 1, 'image');
+  await harness.request('https://a.example.com/page', 1, 'main_frame');
+  await harness.settle();
+
+  assert.deepEqual(
+    plain((await harness.getFoundUrls()).map(entry => entry.url)),
+    ['https://a.example.com/page']
+  );
+});
+
+test('going back to every type widens the filter again', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame'] }
+  });
+  await harness.settle();
+
+  harness.syncRequestTypes(null);
+  await harness.settle();
+
+  assert.equal(harness.requestFilters[harness.requestFilters.length - 1].types, undefined);
+
+  await harness.request('https://a.example.com/image', 1, 'image');
+  await harness.settle();
+
+  assert.equal((await harness.getFoundUrls()).length, 1);
+});
+
+test('an unchanged setting does not tear the listener down for nothing', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame'] }
+  });
+  await harness.settle();
+
+  const before = harness.requestFilters.length;
+  // The same list arriving again, as a sync from another device would
+  harness.syncRequestTypes(['main_frame']);
+  await harness.settle();
+
+  assert.equal(harness.requestFilters.length, before);
+});
+
+test('a stored type Chrome would reject never reaches the filter', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame', 'not_a_type'] }
+  });
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.requestFilters[1].types), ['main_frame']);
+});
+
+test('a filter Chrome rejects leaves the listener watching everything', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES, requestTypes: ['main_frame'] },
+    rejectNarrowFilter: true
+  });
+  await harness.settle();
+
+  // The recovery matters: the listener is taken off before it is put back, so
+  // a throw in between would leave nothing listening at all
+  assert.ok(harness.hasRequestListener(), 'something should still be listening');
+
+  await harness.request('https://a.example.com/page', 1, 'main_frame');
+  await harness.settle();
+
+  assert.equal((await harness.getFoundUrls()).length, 1);
 });

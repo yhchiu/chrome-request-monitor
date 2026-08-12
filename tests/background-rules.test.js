@@ -91,6 +91,7 @@ function createBackgroundHarness({
   const tabMessages = [];
   let messageListener;
   let requestListener;
+  const requestFilters = [];
   let storageListener;
 
   const chrome = {
@@ -134,8 +135,14 @@ function createBackgroundHarness({
     },
     webRequest: {
       onBeforeRequest: {
-        addListener(listener) {
+        addListener(listener, filter) {
           requestListener = listener;
+          requestFilters.push(filter);
+        },
+        // The filter is fixed when the listener is registered, so narrowing it
+        // means taking the listener off and putting it back
+        removeListener() {
+          requestListener = null;
         }
       }
     }

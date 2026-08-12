@@ -440,6 +440,36 @@
     "message": "Current Rules List",
     "description": "Current rules section title"
   },
+  "requestTypesTitle": {
+    "message": "Request Types to Watch",
+    "description": "Request type section title"
+  },
+  "requestTypesHelpText": {
+    "message": "Rules are only checked against the request types ticked here. Watching fewer types means the browser hands the extension less work, which is worth doing if you keep many tabs open. Leave them all ticked to watch everything.",
+    "description": "Help text for the request type section"
+  },
+  "requestTypesSelectAll": {
+    "message": "Select all",
+    "description": "Button that ticks every request type"
+  },
+  "requestTypesSelectCommon": {
+    "message": "Documents and API calls only",
+    "description": "Button that ticks only the most commonly matched request types"
+  },
+  "errorNoRequestTypes": {
+    "message": "Pick at least one request type, otherwise nothing would be watched at all",
+    "description": "Error shown when no request type is ticked"
+  },
+  "errorSavingRequestTypes": {
+    "message": "Failed to save request types: $error$",
+    "description": "Error shown when the request types cannot be saved",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QUOTA_BYTES quota exceeded"
+      }
+    }
+  },
   "usageInstructionsTitle": {
     "message": "Usage Instructions",
     "description": "Usage instructions section title"

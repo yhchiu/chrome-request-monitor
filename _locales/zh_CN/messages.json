@@ -450,6 +450,36 @@
     "message": "当前规则列表",
     "description": "Current rules section title in Simplified Chinese"
   },
+  "requestTypesTitle": {
+    "message": "要监控的请求类型",
+    "description": "Request type section title in Simplified Chinese"
+  },
+  "requestTypesHelpText": {
+    "message": "规则只会比对这里勾选的请求类型。监控的类型越少，浏览器交给扩展程序处理的工作就越少；如果你习惯开很多标签页，这会有明显差别。全部勾选即为监控所有类型。",
+    "description": "Help text for the request type section in Simplified Chinese"
+  },
+  "requestTypesSelectAll": {
+    "message": "全选",
+    "description": "Button that ticks every request type in Simplified Chinese"
+  },
+  "requestTypesSelectCommon": {
+    "message": "只选文档与 API 请求",
+    "description": "Button that ticks only the most commonly matched request types in Simplified Chinese"
+  },
+  "errorNoRequestTypes": {
+    "message": "请至少勾选一种请求类型，否则将完全不会监控任何请求",
+    "description": "Error shown when no request type is ticked in Simplified Chinese"
+  },
+  "errorSavingRequestTypes": {
+    "message": "保存请求类型失败：$error$",
+    "description": "Error shown when the request types cannot be saved in Simplified Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QUOTA_BYTES quota exceeded"
+      }
+    }
+  },
   "usageInstructionsTitle": {
     "message": "使用说明",
     "description": "Usage instructions section title in Simplified Chinese"

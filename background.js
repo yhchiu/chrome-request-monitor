@@ -1,5 +1,6 @@
 // Background service worker for Chrome extension
 importScripts('rule-id.js'); // createRuleId, shared with the options page
+importScripts('request-types.js'); // KNOWN_REQUEST_TYPES and normalizeRequestTypes
 
 // Captured URLs, kept per tab rather than in one shared list.
 //
@@ -103,6 +104,34 @@ async function initializeMonitorSettings() {
     // Left on, which is the default and what the read used to fall back to. A
     // transient storage error should not quietly stop monitoring altogether.
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to load monitor settings:`, error);
+  }
+}
+
+// The resource types being watched. null means every type, which is the
+// default: the extension exists to notice requests, so it starts by noticing
+// all of them.
+let requestTypes = null;
+
+// Whether a request's type is one the user asked to watch.
+//
+// This is what actually decides, rather than the filter the listener was
+// registered with. The listener has to be registered in the first turn after
+// the Service Worker starts or the events it wants would not wake it, and the
+// stored types cannot be read that early, so it starts wide and is narrowed
+// afterwards. Between those two moments the wide filter is still in force.
+function isTypeWatched(type) {
+  return requestTypes === null || requestTypes.includes(type);
+}
+
+async function initializeRequestTypes() {
+  try {
+    const result = await chrome.storage.sync.get(['requestTypes']);
+    requestTypes = normalizeRequestTypes(result.requestTypes);
+  } catch (error) {
+    // Watching everything is the default and the safer answer: a storage error
+    // should not quietly stop the monitor noticing things.
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to load request types:`, error);
+    requestTypes = null;
   }
 }
 
@@ -431,6 +460,7 @@ async function clearFoundUrls() {
 const startupReady = Promise.all([
   initializeFoundUrls(),
   initializeMonitorSettings(),
+  initializeRequestTypes().then(applyRequestTypeFilter),
   migrateStoredData()
 ]).catch(() => {});
 
@@ -507,68 +537,129 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // Listen for web requests
-chrome.webRequest.onBeforeRequest.addListener(
-  async (details) => {
-    // Wait for the stored settings before deciding anything, including whether
-    // to capture at all: the monitor switch defaults to on, and a URL captured
-    // against that default cannot be taken back the way a shown overlay can.
-    // This also puts the match below after the id migration, so the rule
-    // snapshot kept with the URL always carries an id and can be matched
-    // against a focus later. The listener is not blocking, so this delays only
-    // our own work: the request still goes ahead and is still captured.
-    if (!startupDone) {
-      await startupReady;
-    }
+async function handleBeforeRequest(details) {
+  // Wait for the stored settings before deciding anything, including whether
+  // to capture at all: the monitor switch defaults to on, and a URL captured
+  // against that default cannot be taken back the way a shown overlay can.
+  // This also puts the match below after the id migration, so the rule
+  // snapshot kept with the URL always carries an id and can be matched
+  // against a focus later. The listener is not blocking, so this delays only
+  // our own work: the request still goes ahead and is still captured.
+  if (!startupDone) {
+    await startupReady;
+  }
 
-    // Check if monitoring is enabled
-    if (!monitorSettings.enabled) {
-      return;
-    }
+  // Check if monitoring is enabled
+  if (!monitorSettings.enabled) {
+    return;
+  }
 
-    if (compiledRules.length === 0) return;
+  // The registered filter may still be the wide one the worker starts with,
+  // so the type is checked here rather than trusted to it
+  if (!isTypeWatched(details.type)) {
+    return;
+  }
 
-    // Check if URL matches any rule (always check all rules and filter later in display)
-    const matched = compiledRules.find(entry => entry.matches(details.url));
+  if (compiledRules.length === 0) return;
 
-    if (matched) {
-      const matchedRule = matched.rule;
-      // Get tab information to include title and determine if we can message this tab
-      const tabInfo = await getTabInfo(details.tabId);
-      const tabTitle = (tabInfo && tabInfo.title) || chrome.i18n.getMessage('unknown') || 'Unknown';
-      const tabUrl = (tabInfo && tabInfo.url) || '';
-      // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
-      const canSendOverlay = /^https?:\/\//i.test(tabUrl);
+  // Check if URL matches any rule (always check all rules and filter later in display)
+  const matched = compiledRules.find(entry => entry.matches(details.url));
 
-      const urlData = {
-        url: details.url,
-        timestamp: Date.now(),
-        rule: matchedRule,
-        tabId: details.tabId,
-        tabTitle: tabTitle
-      };
-      
-      // Store the found URL using hybrid caching
-      addFoundUrl(urlData);
-      
-      // Send message to content script to show overlay (only when eligible).
-      // A rule outside the current focus is still recorded above, it just does
-      // not interrupt the page.
-      if (isRuleFocused(matchedRule.id) &&
-          typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
-        try {
-          await chrome.tabs.sendMessage(details.tabId, {
-            action: 'showUrlOverlay',
-            data: urlData
-          });
-        } catch (error) {
-          // Content script may not be injected yet or page is restricted; skip logging as error to reduce noise
-          console.warn(`[${chrome.i18n.getMessage('extensionName')}] Skipped sending overlay to this tab:`, { tabId: details.tabId, url: tabUrl, reason: error?.message });
-        }
+  if (matched) {
+    const matchedRule = matched.rule;
+    // Get tab information to include title and determine if we can message this tab
+    const tabInfo = await getTabInfo(details.tabId);
+    const tabTitle = (tabInfo && tabInfo.title) || chrome.i18n.getMessage('unknown') || 'Unknown';
+    const tabUrl = (tabInfo && tabInfo.url) || '';
+    // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
+    const canSendOverlay = /^https?:\/\//i.test(tabUrl);
+
+    const urlData = {
+      url: details.url,
+      timestamp: Date.now(),
+      rule: matchedRule,
+      tabId: details.tabId,
+      tabTitle: tabTitle
+    };
+    
+    // Store the found URL using hybrid caching
+    addFoundUrl(urlData);
+    
+    // Send message to content script to show overlay (only when eligible).
+    // A rule outside the current focus is still recorded above, it just does
+    // not interrupt the page.
+    if (isRuleFocused(matchedRule.id) &&
+        typeof details.tabId === 'number' && details.tabId >= 0 && canSendOverlay) {
+      try {
+        await chrome.tabs.sendMessage(details.tabId, {
+          action: 'showUrlOverlay',
+          data: urlData
+        });
+      } catch (error) {
+        // Content script may not be injected yet or page is restricted; skip logging as error to reduce noise
+        console.warn(`[${chrome.i18n.getMessage('extensionName')}] Skipped sending overlay to this tab:`, { tabId: details.tabId, url: tabUrl, reason: error?.message });
       }
     }
-  },
-  { urls: ["<all_urls>"] }
-);
+  }
+}
+
+// Watching everything, which is what the listener starts with. Registering has
+// to happen in the first turn after the Service Worker starts, or a request of
+// a type nothing is listening for would not wake it, and the stored types
+// cannot be read that quickly.
+const WIDE_REQUEST_FILTER = { urls: ["<all_urls>"] };
+
+chrome.webRequest.onBeforeRequest.addListener(handleBeforeRequest, WIDE_REQUEST_FILTER);
+
+// The types the listener is currently registered for, so an unchanged setting
+// does not tear the listener down and put it back for nothing
+let registeredRequestTypes = null;
+
+// Compared by value, not by identity: normalizeRequestTypes builds a fresh
+// array every time, so the same setting arriving again is never the same object.
+// The order is canonical, which is what lets this compare position by position.
+function sameRequestTypes(left, right) {
+  if (left === right) {
+    return true;
+  }
+
+  if (left === null || right === null) {
+    return false;
+  }
+
+  return left.length === right.length && left.every((type, index) => type === right[index]);
+}
+
+// Narrow what Chrome delivers to the types being watched.
+//
+// The handler already ignores the rest, so this changes no behaviour. What it
+// saves is the delivery itself: a filtered out request never crosses into the
+// Service Worker, which is the cost worth avoiding when a profile has many tabs
+// making requests.
+function applyRequestTypeFilter() {
+  if (sameRequestTypes(registeredRequestTypes, requestTypes)) {
+    return;
+  }
+
+  registeredRequestTypes = requestTypes;
+
+  const filter = requestTypes === null
+    ? WIDE_REQUEST_FILTER
+    : { urls: ["<all_urls>"], types: requestTypes };
+
+  chrome.webRequest.onBeforeRequest.removeListener(handleBeforeRequest);
+
+  try {
+    chrome.webRequest.onBeforeRequest.addListener(handleBeforeRequest, filter);
+  } catch (error) {
+    // A type Chrome does not know makes addListener throw. The listener has
+    // already been taken off by this point, so put it back watching everything
+    // rather than leave nothing listening at all.
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to narrow the request filter:`, error);
+    registeredRequestTypes = null;
+    chrome.webRequest.onBeforeRequest.addListener(handleBeforeRequest, WIDE_REQUEST_FILTER);
+  }
+}
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -669,6 +760,12 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     // Update monitor settings
     if (changes.monitorEnabled) {
       monitorSettings.enabled = changes.monitorEnabled.newValue;
+    }
+
+    // Update the types being watched, and narrow what Chrome delivers to match
+    if (changes.requestTypes) {
+      requestTypes = normalizeRequestTypes(changes.requestTypes.newValue);
+      applyRequestTypeFilter();
     }
 
     // Update data settings

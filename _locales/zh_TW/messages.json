@@ -450,6 +450,36 @@
     "message": "目前的規則列表",
     "description": "Current rules section title in Traditional Chinese"
   },
+  "requestTypesTitle": {
+    "message": "要監控的請求類型",
+    "description": "Request type section title in Traditional Chinese"
+  },
+  "requestTypesHelpText": {
+    "message": "規則只會比對這裡勾選的請求類型。監控的類型越少，瀏覽器交給擴充功能處理的工作就越少；如果你習慣開很多分頁，這會有明顯差別。全部勾選即為監控所有類型。",
+    "description": "Help text for the request type section in Traditional Chinese"
+  },
+  "requestTypesSelectAll": {
+    "message": "全選",
+    "description": "Button that ticks every request type in Traditional Chinese"
+  },
+  "requestTypesSelectCommon": {
+    "message": "只選文件與 API 請求",
+    "description": "Button that ticks only the most commonly matched request types in Traditional Chinese"
+  },
+  "errorNoRequestTypes": {
+    "message": "請至少勾選一種請求類型，否則將完全不會監控任何請求",
+    "description": "Error shown when no request type is ticked in Traditional Chinese"
+  },
+  "errorSavingRequestTypes": {
+    "message": "儲存請求類型失敗：$error$",
+    "description": "Error shown when the request types cannot be saved in Traditional Chinese",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "QUOTA_BYTES quota exceeded"
+      }
+    }
+  },
   "usageInstructionsTitle": {
     "message": "使用說明",
     "description": "Usage instructions section title in Traditional Chinese"
