@@ -10,7 +10,8 @@ const OVERLAY_I18N_KEYS = [
   'overlayPaused',
   'rule',
   'overlayCopy',
-  'overlayClose'
+  'overlayClose',
+  'overlayCloseAll'
 ];
 
 // Enough of an element for the overlay code to build and tear down its boxes
@@ -24,6 +25,7 @@ function createElement(tagName = 'div') {
     children: [],
     parentNode: null,
     listeners: {},
+    selectorStubs: new Map(),
     style: {
       setProperty() {}
     },
@@ -58,10 +60,20 @@ function createElement(tagName = 'div') {
     addEventListener(type, listener) {
       element.listeners[type] = listener;
     },
+    // Fire a listener the way the browser would, with `this` set to the element
+    dispatch(type) {
+      assert.ok(element.listeners[type], `no ${type} listener registered`);
+      element.listeners[type].call(element);
+    },
     // The overlay markup is set through innerHTML, so the buttons it looks for
-    // afterwards are handed back as fresh stubs.
-    querySelector() {
-      return createElement('button');
+    // afterwards are handed back as stubs. The same selector gives back the
+    // same stub, the way the real DOM would, so a test can press the button the
+    // overlay code has attached its listener to.
+    querySelector(selector) {
+      if (!element.selectorStubs.has(selector)) {
+        element.selectorStubs.set(selector, createElement('button'));
+      }
+      return element.selectorStubs.get(selector);
     },
     // innerHTML does not really parse here, so the localizable parts of the
     // overlay markup stand in as a fixed set. They are remembered so a test can
@@ -106,6 +118,7 @@ function createContentHarness({ storedOverlaySettings } = {}) {
   const storageReads = [];
   let messageListener;
   let storageListener;
+  let scheduledTimeouts = 0;
 
   const document = {
     body,
@@ -167,8 +180,11 @@ function createContentHarness({ storedOverlaySettings } = {}) {
         writeText: () => Promise.resolve()
       }
     },
-    // Real timers would keep the overlays scheduled and hold the process open
+    // Real timers would keep the overlays scheduled and hold the process open.
+    // The calls are counted because an overlay only schedules one when the
+    // timeouts are not paused, which is how a test can tell the two apart.
     setTimeout() {
+      scheduledTimeouts += 1;
       return 0;
     }
   });
@@ -242,6 +258,24 @@ function createContentHarness({ storedOverlaySettings } = {}) {
     },
     hasContainer() {
       return body.children.length > 0;
+    },
+    // Press a button on the overlay added most recently
+    pressButton(selector) {
+      this.lastOverlay().querySelector(selector).dispatch('click');
+    },
+    // Put the pointer over the overlay added most recently, which is what the
+    // user does on the way to its buttons and what pauses the timeouts
+    hoverLastOverlay() {
+      this.lastOverlay().dispatch('mouseenter');
+    },
+    lastOverlay() {
+      const container = body.children[0];
+      return container.children[container.children.length - 1];
+    },
+    // How many timeouts have been scheduled. An overlay schedules one only when
+    // the timeouts are not paused.
+    timeoutsScheduled() {
+      return scheduledTimeouts;
     }
   };
 }
@@ -318,6 +352,58 @@ test('an overlay names every rule its URL matched', () => {
   assert.ok(overlay.includes('rule-b - rule-b'), 'the second rule should be named');
 });
 
+test('close all takes every overlay away', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+  content.showUrl('rule-b');
+  content.showUrl('rule-c');
+
+  content.pressButton('.close-all-btn');
+
+  assert.deepEqual(content.visibleRuleIds(), []);
+});
+
+test('close all clears the container away with the last overlay', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+  content.showUrl('rule-b');
+
+  content.pressButton('.close-all-btn');
+
+  assert.equal(content.hasContainer(), false);
+});
+
+test('close is still only the one overlay', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+  content.showUrl('rule-b');
+
+  content.pressButton('.close-btn');
+
+  assert.deepEqual(content.visibleRuleIds(), ['rule-a']);
+});
+
+test('an overlay after close all is not left paused', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+
+  // Reaching the button means hovering the overlay, which pauses the timeouts
+  content.hoverLastOverlay();
+  content.pressButton('.close-all-btn');
+
+  // A removed element does not report the pointer leaving it, so without the
+  // pause being released by hand the next overlay would arrive already paused
+  // and would never time out.
+  const before = content.timeoutsScheduled();
+  content.showUrl('rule-b');
+
+  assert.equal(content.timeoutsScheduled(), before + 1);
+});
+
 test('showing every rule again takes nothing away', () => {
   const content = createContentHarness();
 
@@ -355,7 +441,8 @@ test('an overlay is localized without asking the background', () => {
     'translated:overlayPaused',
     'translated:rule',
     'translated:overlayCopy',
-    'translated:overlayClose'
+    'translated:overlayClose',
+    'translated:overlayCloseAll'
   ]);
   assert.deepEqual(
     content.runtimeMessages.filter(message => message.action === 'getI18nMessage'),

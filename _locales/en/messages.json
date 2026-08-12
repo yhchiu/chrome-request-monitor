@@ -391,6 +391,10 @@
     "message": "Close",
     "description": "Close overlay button text"
   },
+  "overlayCloseAll": {
+    "message": "Close All",
+    "description": "Button text for closing every overlay at once"
+  },
   "overlayCopy": {
     "message": "Copy",
     "description": "Copy overlay button text"

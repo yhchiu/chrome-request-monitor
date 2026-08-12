@@ -123,6 +123,20 @@ function removeOverlay(overlay) {
   }
 }
 
+// Take every overlay off the page at once. A page that keeps matching a rule
+// puts up a stack of them, and dismissing that one box at a time is tedious.
+function removeAllOverlays() {
+  // Copy first: removeOverlay mutates activeOverlays as it goes
+  activeOverlays.slice().forEach(overlay => removeOverlay(overlay));
+
+  // The pause those overlays were holding has to be released by hand. The
+  // pointer was over one of them to reach the button, and an element that is
+  // removed does not report the pointer leaving it, so the mouseleave that
+  // normally resumes the timeouts never arrives. Without this the next overlay
+  // would turn up already paused and would never go away on its own.
+  globalHoverState = false;
+}
+
 // Initialize settings
 loadOverlaySettings();
 
@@ -324,6 +338,17 @@ function showUrlOverlay(urlData) {
         font-weight: bold;
         transition: all 0.2s;
       " data-i18n="overlayClose">Close</button>
+      <button class="close-all-btn" style="
+        background: #c678dd;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+        transition: all 0.2s;
+      " data-i18n="overlayCloseAll">Close All</button>
     </div>
   `;
   
@@ -338,6 +363,7 @@ function showUrlOverlay(urlData) {
   // Add event listeners
   const copyBtn = overlay.querySelector('.copy-btn');
   const closeBtn = overlay.querySelector('.close-btn');
+  const closeAllBtn = overlay.querySelector('.close-all-btn');
   // Initialize buttons background opacity according to settings
   setOverlayButtonsOpacity(overlay, overlaySettings.opacity != null ? overlaySettings.opacity : 0.95);
   
@@ -383,6 +409,18 @@ function showUrlOverlay(urlData) {
   
   closeBtn.addEventListener('mouseleave', () => {
     closeBtn.style.background = '#e06c75';
+  });
+
+  closeAllBtn.addEventListener('click', () => {
+    removeAllOverlays();
+  });
+
+  closeAllBtn.addEventListener('mouseenter', () => {
+    closeAllBtn.style.background = '#a758c0';
+  });
+
+  closeAllBtn.addEventListener('mouseleave', () => {
+    closeAllBtn.style.background = '#c678dd';
   });
   
   // Add to container
@@ -462,6 +500,7 @@ function updateExistingOverlayStyles() {
 function setOverlayButtonsOpacity(overlayEl, opacity) {
   const copy = overlayEl.querySelector('.copy-btn');
   const close = overlayEl.querySelector('.close-btn');
+  const closeAll = overlayEl.querySelector('.close-all-btn');
   if (copy) {
     try {
       copy.style.setProperty('background', `rgba(97, 218, 251, ${opacity})`, 'important');
@@ -474,6 +513,13 @@ function setOverlayButtonsOpacity(overlayEl, opacity) {
       close.style.setProperty('background', `rgba(224, 108, 117, ${opacity})`, 'important');
     } catch (e) {
       close.style.background = `rgba(224, 108, 117, ${opacity})`;
+    }
+  }
+  if (closeAll) {
+    try {
+      closeAll.style.setProperty('background', `rgba(198, 120, 221, ${opacity})`, 'important');
+    } catch (e) {
+      closeAll.style.background = `rgba(198, 120, 221, ${opacity})`;
     }
   }
 }

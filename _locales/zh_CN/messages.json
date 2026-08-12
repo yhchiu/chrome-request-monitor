@@ -401,6 +401,10 @@
     "message": "关闭",
     "description": "Close overlay button text in Simplified Chinese"
   },
+  "overlayCloseAll": {
+    "message": "全部关闭",
+    "description": "Close all overlays button text in Simplified Chinese"
+  },
   "overlayCopy": {
     "message": "复制",
     "description": "Copy overlay button text in Simplified Chinese"

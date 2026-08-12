@@ -61,7 +61,7 @@ Install directly from the Chrome Web Store: [Network Request Monitor](https://ch
 After setting up rules, when you browse websites:
 - URLs matching the rules are recorded, and notification boxes appear in the top right corner of the page for the rules you are showing (every rule, by default)
 - Click the "Copy" button in the notification box to copy the URL
-- Click the "Close" button to dismiss the notification box
+- Click the "Close" button to dismiss the notification box, or "Close All" to dismiss every box on the page at once
 
 ### Step 3: View History
 
