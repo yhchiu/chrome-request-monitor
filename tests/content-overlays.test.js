@@ -105,6 +105,7 @@ function createContentHarness({ storedOverlaySettings } = {}) {
   const runtimeMessages = [];
   const storageReads = [];
   let messageListener;
+  let storageListener;
 
   const document = {
     body,
@@ -147,6 +148,11 @@ function createContentHarness({ storedOverlaySettings } = {}) {
           storageReads.push(Array.isArray(keys) ? Array.from(keys) : [keys]);
           callback(storedOverlaySettings ? { overlaySettings: storedOverlaySettings } : {});
         }
+      },
+      onChanged: {
+        addListener(listener) {
+          storageListener = listener;
+        }
       }
     }
   };
@@ -188,6 +194,14 @@ function createContentHarness({ storedOverlaySettings } = {}) {
     },
     send(message) {
       messageListener(message, {}, () => {});
+    },
+    // Deliver a settings change the way Chrome does to every content script
+    syncOverlaySettings(settings, areaName = 'sync') {
+      storageListener({ overlaySettings: { newValue: settings } }, areaName);
+    },
+    // Where the container ended up, which is what a position change moves
+    containerStyle() {
+      return body.children[0].style;
     },
     showUrl(ruleId, url) {
       this.send({
@@ -333,6 +347,58 @@ test('the built in settings still apply when storage holds none', () => {
   }
 
   // The default limit of five
+  assert.equal(content.visibleRuleIds().length, 5);
+});
+
+// A settings change used to arrive as a message the background sent to every
+// tab. The same change event reaches every content script on its own.
+
+test('a settings change from storage applies without a message', () => {
+  const content = createContentHarness();
+
+  content.syncOverlaySettings({
+    maxOverlays: 2,
+    timeoutSeconds: 10,
+    position: 'bottom-left',
+    opacity: 0.5
+  });
+
+  content.showUrl('rule-a');
+  content.showUrl('rule-b');
+  content.showUrl('rule-c');
+
+  // The new limit is in force, so the change really was taken up
+  assert.deepEqual(content.visibleRuleIds(), ['rule-b', 'rule-c']);
+});
+
+test('a settings change moves the overlays already on screen', () => {
+  const content = createContentHarness();
+
+  content.showUrl('rule-a');
+  content.syncOverlaySettings({
+    maxOverlays: 5,
+    timeoutSeconds: 30,
+    position: 'bottom-left',
+    opacity: 0.5
+  });
+
+  // Switching what is shown is a statement about now, so the container moves
+  // rather than waiting for the next overlay
+  assert.equal(content.containerStyle().bottom, '20px');
+  assert.equal(content.containerStyle().left, '20px');
+  assert.equal(content.containerStyle().top, '');
+});
+
+test('a change in another storage area is left alone', () => {
+  const content = createContentHarness();
+
+  content.syncOverlaySettings({ maxOverlays: 1 }, 'local');
+
+  for (let i = 0; i < 6; i += 1) {
+    content.showUrl(`rule-${i}`);
+  }
+
+  // The settings live in sync storage, so the default limit still stands
   assert.equal(content.visibleRuleIds().length, 5);
 });
 

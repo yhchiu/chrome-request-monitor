@@ -48,15 +48,37 @@ function localizeOverlay(overlay) {
 // Worker once per tab just to be handed a value storage can give us directly.
 function loadOverlaySettings() {
   chrome.storage.sync.get(['overlaySettings'], function(result) {
-    if (result && result.overlaySettings) {
-      overlaySettings = result.overlaySettings;
-    }
-    // Apply container position if already created
-    if (overlayContainer) {
-      applyOverlayContainerPosition();
-    }
+    applyOverlaySettings(result && result.overlaySettings);
   });
 }
+
+// Take a new set of settings and bring what is already on screen into line
+function applyOverlaySettings(settings) {
+  if (!settings) {
+    return;
+  }
+
+  overlaySettings = settings;
+
+  // Apply container position if already created
+  if (overlayContainer) {
+    applyOverlayContainerPosition();
+  }
+
+  updateExistingOverlayStyles();
+}
+
+// Settings changes arrive straight from storage.
+//
+// The background used to watch for the change and send a message to every tab,
+// which cost one message per tab open however few of them cared. A content
+// script is given the same change event, so each tab can pick its own up for
+// nothing, the way it already reads the settings for itself at load.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'sync' && changes.overlaySettings) {
+    applyOverlaySettings(changes.overlaySettings.newValue);
+  }
+});
 
 // Pause all overlay timeouts
 function pauseAllTimeouts() {
@@ -110,13 +132,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     showUrlOverlay(request.data);
   } else if (request.action === 'updateFocusedRules') {
     removeUnfocusedOverlays(request.focusedRuleIds);
-  } else if (request.action === 'updateOverlaySettings') {
-    overlaySettings = request.settings;
-    if (overlayContainer) {
-      applyOverlayContainerPosition();
-    }
-    // Update opacity for existing overlays
-    updateExistingOverlayStyles();
   }
 });
 

@@ -165,31 +165,6 @@ async function broadcastToTabIds(tabIds, message) {
   }
 }
 
-// Send a message to every tab that can actually receive it.
-//
-// The query is narrowed rather than asking for every tab. A discarded tab has
-// no renderer and a page that is not http or https never ran the content
-// script, so messaging either one only produces a rejection to throw away.
-// Narrowing also keeps the answer small, which matters on its own: every tab
-// the query returns carries its url and title across.
-//
-// Overlays are only ever sent to http and https pages, so restricting the
-// broadcast the same way cannot leave an overlay behind somewhere it reaches.
-async function broadcastToTabs(message) {
-  let tabs;
-  try {
-    tabs = await chrome.tabs.query({
-      url: ['http://*/*', 'https://*/*'],
-      discarded: false
-    });
-  } catch (error) {
-    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to list tabs:`, error);
-    return;
-  }
-
-  await broadcastToTabIds(tabs.map(tab => tab.id), message);
-}
-
 // Tabs that have been sent an overlay and so may still be showing one.
 //
 // The focus broadcast only has to reach these. A tab with nothing on screen has
@@ -823,13 +798,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
       enforceFoundUrlLimits();
       scheduleBackup();
     }
-    
-    // Update overlay settings
-    if (changes.overlaySettings) {
-      broadcastToTabs({
-        action: 'updateOverlaySettings',
-        settings: changes.overlaySettings.newValue
-      });
-    }
+
+    // Overlay settings are not relayed. Every content script is given the same
+    // change event, so each tab picks its own up without a message from here.
   }
 });

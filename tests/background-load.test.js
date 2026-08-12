@@ -679,41 +679,21 @@ test('a tab that cannot receive the broadcast does not stop the rest', async () 
   assert.equal(harness.messagesOfAction('updateFocusedRules').length, 100);
 });
 
-// The overlay settings broadcast still has to reach every tab: a tab with
-// nothing on screen right now still shows its next overlay with whatever
-// settings it last heard about.
-
-test('the overlay settings broadcast asks only for tabs that can receive it', async () => {
-  const harness = createHarness({ sync: { urlRules: RULES } });
-  await harness.settle();
-
-  harness.syncOverlaySettings({ maxOverlays: 3, timeoutSeconds: 10, position: 'top-left', opacity: 0.5 });
-  await harness.settle();
-
-  // A discarded tab has no renderer and a non http page never ran the content
-  // script, so asking for them only buys rejections to throw away
-  const query = harness.tabQueries[harness.tabQueries.length - 1];
-  assert.equal(query.discarded, false);
-  assert.deepEqual(plain(query.url), ['http://*/*', 'https://*/*']);
-});
-
-test('an overlay settings change is broadcast the same bounded way', async () => {
+test('an overlay settings change costs the background nothing', async () => {
   const harness = createHarness({
     sync: { urlRules: RULES },
     tabs: manyTabs(500)
   });
   await harness.settle();
 
+  const queriesBefore = harness.tabQueries.length;
   harness.syncOverlaySettings({ maxOverlays: 3, timeoutSeconds: 10, position: 'top-left', opacity: 0.5 });
   await harness.settle();
 
-  const sent = harness.messagesOfAction('updateOverlaySettings');
-  assert.equal(sent.length, 500);
-  assert.equal(sent[0].message.settings.maxOverlays, 3);
-  assert.ok(
-    harness.peakInFlight() <= 50,
-    `expected at most 50 messages in flight, saw ${harness.peakInFlight()}`
-  );
+  // Every content script is given the same change event, so relaying it here
+  // only bought one message per tab open
+  assert.deepEqual(harness.messagesOfAction('updateOverlaySettings'), []);
+  assert.equal(harness.tabQueries.length, queriesBefore);
 });
 
 // The backup to session storage serializes the whole captured list, which can
