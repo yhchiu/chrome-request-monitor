@@ -1,12 +1,5 @@
 // Options page script for Chrome extension
-
-// Generate a stable identifier for a rule
-function createRuleId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
+// createRuleId comes from rule-id.js, loaded before this file.
 
 // Which rules should be shown after a rule is added. A rule the user has just
 // created should be visible straight away, so it joins a narrowed selection

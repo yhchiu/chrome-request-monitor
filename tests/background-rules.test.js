@@ -137,20 +137,30 @@ function createBackgroundHarness({
     }
   };
 
-  const backgroundSource = fs.readFileSync(
-    path.join(__dirname, '..', 'background.js'),
-    'utf8'
-  );
-
-  vm.runInNewContext(backgroundSource, {
+  const context = vm.createContext({
     chrome,
     console,
     crypto,
+    // Load the shared script into the same context, the way the Service Worker
+    // does. A no-op stub would leave createRuleId undefined.
+    importScripts(file) {
+      vm.runInContext(
+        fs.readFileSync(path.join(__dirname, '..', file), 'utf8'),
+        context,
+        { filename: file }
+      );
+    },
     setInterval() {
       return 0;
     },
     setTimeout
-  }, { filename: 'background.js' });
+  });
+
+  vm.runInContext(
+    fs.readFileSync(path.join(__dirname, '..', 'background.js'), 'utf8'),
+    context,
+    { filename: 'background.js' }
+  );
 
   return {
     syncData: syncArea.data,

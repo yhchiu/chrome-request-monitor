@@ -1,4 +1,6 @@
 // Background service worker for Chrome extension
+importScripts('rule-id.js'); // createRuleId, shared with the options page
+
 let foundUrlsCache = []; // Memory cache for fast access
 let monitorSettings = {
   enabled: true
@@ -65,14 +67,6 @@ function reconcileFocusWithRules(rules) {
   chrome.storage.local.set({ focusedRuleIds: focusedRuleIds }).catch((error) => {
     console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to save focused rules:`, error);
   });
-}
-
-// Generate a stable identifier for a rule
-function createRuleId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // Give stored rules a stable id and convert the legacy index based rule filter.

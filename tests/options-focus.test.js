@@ -38,11 +38,15 @@ function loadOptions() {
     }
   };
 
-  vm.runInNewContext(
-    fs.readFileSync(path.join(__dirname, '..', 'options.js'), 'utf8'),
-    context,
-    { filename: 'options.js' }
-  );
+  // The options page loads the shared script first, so the context needs it too
+  vm.createContext(context);
+  ['rule-id.js', 'options.js'].forEach(file => {
+    vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', file), 'utf8'),
+      context,
+      { filename: file }
+    );
+  });
 
   return {
     focusAfterRuleAdded: context.focusAfterRuleAdded,
