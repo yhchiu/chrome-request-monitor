@@ -591,6 +591,8 @@ test('changing the focus is broadcast to the tabs', async () => {
 
   await harness.settle();
   await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: ['rule-b'] });
+  // The broadcast has to list the tabs first, so it lands after the response
+  await harness.settle();
 
   assert.deepEqual(harness.focusBroadcasts(), [['rule-b']]);
 });

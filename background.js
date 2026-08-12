@@ -81,18 +81,50 @@ function isRuleFocused(ruleId) {
   return focusedRuleIds === null || focusedRuleIds.includes(ruleId);
 }
 
-// Tell every tab about the new focus so overlays for rules that are no longer
+// How many tabs are messaged at once. A broadcast used to send one message per
+// tab from a single synchronous loop, so a profile with ten thousand tabs open
+// queued ten thousand messages before the browser process answered any of them.
+const BROADCAST_BATCH_SIZE = 50;
+
+// Send a message to every tab that can actually receive it, a batch at a time.
+//
+// The query is narrowed rather than asking for every tab. A discarded tab has
+// no renderer and a page that is not http or https never ran the content
+// script, so messaging either one only produces a rejection to throw away.
+// Narrowing also keeps the answer small, which matters on its own: every tab
+// the query returns carries its url and title across.
+//
+// Overlays are only ever sent to http and https pages, so restricting the
+// broadcast the same way cannot leave an overlay behind somewhere it reaches.
+async function broadcastToTabs(message) {
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query({
+      url: ['http://*/*', 'https://*/*'],
+      discarded: false
+    });
+  } catch (error) {
+    console.error(`[${chrome.i18n.getMessage('extensionName')}] Failed to list tabs:`, error);
+    return;
+  }
+
+  for (let start = 0; start < tabs.length; start += BROADCAST_BATCH_SIZE) {
+    const batch = tabs.slice(start, start + BROADCAST_BATCH_SIZE);
+
+    // Waiting between batches bounds how many messages are in flight and gives
+    // the Service Worker room to answer requests while the broadcast runs.
+    await Promise.all(batch.map(tab => chrome.tabs.sendMessage(tab.id, message).catch(() => {
+      // Ignore errors for tabs that don't have the content script
+    })));
+  }
+}
+
+// Tell the tabs about the new focus so overlays for rules that are no longer
 // shown disappear, instead of lingering until they time out.
 function broadcastFocusedRules() {
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach(tab => {
-      chrome.tabs.sendMessage(tab.id, {
-        action: 'updateFocusedRules',
-        focusedRuleIds: focusedRuleIds
-      }).catch(() => {
-        // Ignore errors for tabs that don't have the content script
-      });
-    });
+  return broadcastToTabs({
+    action: 'updateFocusedRules',
+    focusedRuleIds: focusedRuleIds
   });
 }
 
@@ -483,17 +515,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     
     // Update overlay settings
     if (changes.overlaySettings) {
-      const newSettings = changes.overlaySettings.newValue;
-      // Notify all tabs about the settings change
-      chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'updateOverlaySettings',
-            settings: newSettings
-          }).catch(() => {
-            // Ignore errors for tabs that don't have the content script
-          });
-        });
+      broadcastToTabs({
+        action: 'updateOverlaySettings',
+        settings: changes.overlaySettings.newValue
       });
     }
   }

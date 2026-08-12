@@ -69,13 +69,27 @@ function createStorageArea(initial) {
   };
 }
 
-function createHarness({ sync = {}, local = {}, session = {} } = {}) {
+function createHarness({
+  sync = {},
+  local = {},
+  session = {},
+  tabs = [{ id: 1 }],
+  // Tab ids that reject, the way a tab without the content script does
+  unreachableTabIds = []
+} = {}) {
   const syncArea = createStorageArea(sync);
   const localArea = createStorageArea(local);
   const sessionArea = createStorageArea(session);
 
   const tabMessages = [];
+  const tabQueries = [];
   const errors = [];
+
+  // A broadcast used to send to every tab at once. Watching how many messages
+  // are outstanding is the only way to see that it no longer does.
+  let inFlight = 0;
+  let peakInFlight = 0;
+
   let messageListener;
   let requestListener;
   let storageListener;
@@ -104,7 +118,7 @@ function createHarness({ sync = {}, local = {}, session = {} } = {}) {
     tabs: {
       get: () => Promise.resolve({ title: 'tab', url: 'https://example.com' }),
       query: (queryInfo, callback) => {
-        const tabs = [{ id: 1 }];
+        tabQueries.push(queryInfo);
         if (callback) {
           callback(tabs);
           return undefined;
@@ -113,7 +127,22 @@ function createHarness({ sync = {}, local = {}, session = {} } = {}) {
       },
       sendMessage: (tabId, message) => {
         tabMessages.push({ tabId, message });
-        return Promise.resolve();
+        inFlight += 1;
+        peakInFlight = Math.max(peakInFlight, inFlight);
+
+        // Answering on a later turn is what makes the batching observable: a
+        // stub that resolved straight away would never show more than one
+        // message outstanding.
+        return new Promise((resolve, reject) => {
+          setImmediate(() => {
+            inFlight -= 1;
+            if (unreachableTabIds.includes(tabId)) {
+              reject(new Error('Receiving end does not exist.'));
+              return;
+            }
+            resolve();
+          });
+        });
       }
     },
     webRequest: {
@@ -160,8 +189,14 @@ function createHarness({ sync = {}, local = {}, session = {} } = {}) {
     syncArea,
     errors,
     tabMessages,
-    async settle() {
-      for (let i = 0; i < 10; i += 1) {
+    tabQueries,
+    peakInFlight() {
+      return peakInFlight;
+    },
+    // Generous by default: a batched broadcast needs a turn per batch, so the
+    // ten turns the other suites use would stop partway through one.
+    async settle(turns = 60) {
+      for (let i = 0; i < turns; i += 1) {
         await new Promise(resolve => setImmediate(resolve));
       }
     },
@@ -173,6 +208,19 @@ function createHarness({ sync = {}, local = {}, session = {} } = {}) {
       const oldValue = syncArea.data.urlRules;
       syncArea.data.urlRules = rules;
       storageListener({ urlRules: { oldValue, newValue: rules } }, 'sync');
+    },
+    syncOverlaySettings(settings) {
+      const oldValue = syncArea.data.overlaySettings;
+      syncArea.data.overlaySettings = settings;
+      storageListener({ overlaySettings: { oldValue, newValue: settings } }, 'sync');
+    },
+    setFocusedRules(focusedRuleIds) {
+      return new Promise(resolve => {
+        messageListener({ action: 'setFocusedRules', focusedRuleIds }, {}, resolve);
+      });
+    },
+    messagesOfAction(action) {
+      return tabMessages.filter(entry => entry.message.action === action);
     },
     overlayUrls() {
       return tabMessages
@@ -330,6 +378,100 @@ test('a regex rule added on another device is compiled once for the whole set of
 
   const reported = harness.errors.filter(message => message.includes('Invalid regex pattern'));
   assert.equal(reported.length, 1);
+});
+
+// Broadcasts go out whenever the user changes what they are looking at, which
+// is as often as a checkbox in the popup. Sending to every tab at once made
+// that a browser wide stall on a profile with many tabs open.
+
+function manyTabs(count) {
+  return Array.from({ length: count }, (unused, index) => ({ id: index + 1 }));
+}
+
+test('a focus broadcast reaches every tab', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(500)
+  });
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  const sent = harness.messagesOfAction('updateFocusedRules');
+  assert.equal(sent.length, 500);
+  assert.deepEqual(plain(sent[0].message.focusedRuleIds), ['rule-a']);
+});
+
+test('a focus broadcast keeps a bounded number of messages in flight', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(500)
+  });
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  assert.equal(harness.messagesOfAction('updateFocusedRules').length, 500);
+  assert.ok(
+    harness.peakInFlight() <= 50,
+    `expected at most 50 messages in flight, saw ${harness.peakInFlight()}`
+  );
+});
+
+test('the broadcast asks only for tabs that can receive it', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null }
+  });
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  // A discarded tab has no renderer and a non http page never ran the content
+  // script, so asking for them only buys rejections to throw away
+  const query = harness.tabQueries[harness.tabQueries.length - 1];
+  assert.equal(query.discarded, false);
+  assert.deepEqual(plain(query.url), ['http://*/*', 'https://*/*']);
+});
+
+test('a tab that cannot receive the broadcast does not stop the rest', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(120),
+    // Spread across batches so a whole batch is never lost at once
+    unreachableTabIds: [3, 60, 61, 119]
+  });
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  assert.equal(harness.messagesOfAction('updateFocusedRules').length, 120);
+});
+
+test('an overlay settings change is broadcast the same bounded way', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    tabs: manyTabs(500)
+  });
+  await harness.settle();
+
+  harness.syncOverlaySettings({ maxOverlays: 3, timeoutSeconds: 10, position: 'top-left', opacity: 0.5 });
+  await harness.settle();
+
+  const sent = harness.messagesOfAction('updateOverlaySettings');
+  assert.equal(sent.length, 500);
+  assert.equal(sent[0].message.settings.maxOverlays, 3);
+  assert.ok(
+    harness.peakInFlight() <= 50,
+    `expected at most 50 messages in flight, saw ${harness.peakInFlight()}`
+  );
 });
 
 test('rules backfilled with ids by the migration are the ones matched against', async () => {
