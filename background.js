@@ -344,6 +344,61 @@ chrome.storage.sync.get(['dataSettings'], (result) => {
   dataSettings = settings;
 });
 
+// The title and url of the tabs we have seen, so a match does not have to ask
+// the browser for them. Every match used to cost a round trip, on top of the
+// one the rules already cost.
+//
+// The cache is filled as tabs report themselves and on the first match for a
+// tab we have not seen, which is what makes it survive a Service Worker
+// restart: the map starts empty every time and fills itself back in.
+const tabInfoCache = new Map();
+
+function rememberTab(tab) {
+  if (!tab || typeof tab.id !== 'number' || tab.id < 0) {
+    return;
+  }
+
+  tabInfoCache.set(tab.id, {
+    title: tab.title || '',
+    url: tab.url || ''
+  });
+}
+
+// What we know about a tab, or null when there is nothing to know
+async function getTabInfo(tabId) {
+  // Requests that belong to no tab, from a Service Worker for instance, carry
+  // -1. Asking about that always threw, so every one of them used to cost a
+  // failed round trip and a warning.
+  if (typeof tabId !== 'number' || tabId < 0) {
+    return null;
+  }
+
+  const cached = tabInfoCache.get(tabId);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    rememberTab({ ...tab, id: tabId });
+    return tabInfoCache.get(tabId) || null;
+  } catch (error) {
+    console.warn(`[${chrome.i18n.getMessage('extensionName')}] Could not get tab title:`, error);
+    return null;
+  }
+}
+
+// Keep the cache current. A title changes as a page loads, and the entry has to
+// go when the tab does or the map would grow for as long as the Service Worker
+// lives.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  rememberTab(tab);
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabInfoCache.delete(tabId);
+});
+
 // Listen for web requests
 chrome.webRequest.onBeforeRequest.addListener(
   async (details) => {
@@ -367,19 +422,12 @@ chrome.webRequest.onBeforeRequest.addListener(
     if (matched) {
       const matchedRule = matched.rule;
       // Get tab information to include title and determine if we can message this tab
-      let tabTitle = chrome.i18n.getMessage('unknown') || 'Unknown';
-      let tabUrl = '';
-      let canSendOverlay = false;
-      try {
-        const tab = await chrome.tabs.get(details.tabId);
-        tabTitle = tab.title || chrome.i18n.getMessage('unknown') || 'Unknown';
-        tabUrl = tab.url || '';
-        // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
-        canSendOverlay = /^https?:\/\//i.test(tabUrl);
-      } catch (error) {
-        console.warn(`[${chrome.i18n.getMessage('extensionName')}] Could not get tab title:`, error);
-      }
-      
+      const tabInfo = await getTabInfo(details.tabId);
+      const tabTitle = (tabInfo && tabInfo.title) || chrome.i18n.getMessage('unknown') || 'Unknown';
+      const tabUrl = (tabInfo && tabInfo.url) || '';
+      // Only message tabs that are http/https pages (content scripts can't run on chrome://, extensions, web store, etc.)
+      const canSendOverlay = /^https?:\/\//i.test(tabUrl);
+
       const urlData = {
         url: details.url,
         timestamp: Date.now(),

@@ -75,7 +75,9 @@ function createHarness({
   session = {},
   tabs = [{ id: 1 }],
   // Tab ids that reject, the way a tab without the content script does
-  unreachableTabIds = []
+  unreachableTabIds = [],
+  // Tab ids that no longer exist, so asking about them throws
+  missingTabIds = []
 } = {}) {
   const syncArea = createStorageArea(sync);
   const localArea = createStorageArea(local);
@@ -83,8 +85,12 @@ function createHarness({
 
   const tabMessages = [];
   const tabQueries = [];
+  const tabGets = [];
   const errors = [];
   const timers = [];
+
+  let tabUpdatedListener;
+  let tabRemovedListener;
 
   // A broadcast used to send to every tab at once. Watching how many messages
   // are outstanding is the only way to see that it no longer does.
@@ -117,7 +123,17 @@ function createHarness({
       }
     },
     tabs: {
-      get: () => Promise.resolve({ title: 'tab', url: 'https://example.com' }),
+      get: (tabId) => {
+        tabGets.push(tabId);
+        if (missingTabIds.includes(tabId)) {
+          return Promise.reject(new Error('No tab with id.'));
+        }
+        return Promise.resolve({
+          id: tabId,
+          title: `tab ${tabId}`,
+          url: `https://example.com/tab/${tabId}`
+        });
+      },
       query: (queryInfo, callback) => {
         tabQueries.push(queryInfo);
         if (callback) {
@@ -144,6 +160,16 @@ function createHarness({
             resolve();
           });
         });
+      },
+      onUpdated: {
+        addListener(listener) {
+          tabUpdatedListener = listener;
+        }
+      },
+      onRemoved: {
+        addListener(listener) {
+          tabRemovedListener = listener;
+        }
       }
     },
     webRequest: {
@@ -204,6 +230,14 @@ function createHarness({
     errors,
     tabMessages,
     tabQueries,
+    tabGets,
+    // Report a tab the way Chrome does as it loads and its title settles
+    updateTab(tab) {
+      tabUpdatedListener(tab.id, { title: tab.title }, tab);
+    },
+    removeTab(tabId) {
+      tabRemovedListener(tabId, { windowId: 1, isWindowClosing: false });
+    },
     // Fire every timer that is still waiting, the way the clock reaching the
     // delay would
     runTimers() {
@@ -606,6 +640,128 @@ test('capturing again after a clear schedules a fresh backup', async () => {
     plain(harness.sessionArea.writes[0].foundUrls.map(entry => entry.url)),
     ['https://a.example.com/two']
   );
+});
+
+// A match also needs the tab's title and url. Asking the browser for them per
+// match was a second round trip on top of the rules, and requests that belong
+// to no tab always threw.
+
+test('the tab is asked about once, not once per match', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  for (let i = 0; i < 25; i += 1) {
+    await harness.request(`https://a.example.com/${i}`, 7);
+  }
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.tabGets), [7]);
+});
+
+test('each tab is asked about separately', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 7);
+  await harness.request('https://a.example.com/two', 8);
+  await harness.request('https://a.example.com/three', 7);
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.tabGets), [7, 8]);
+});
+
+test('the captured URL still carries the tab title', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls[0].tabTitle, 'tab 7');
+});
+
+test('a request that belongs to no tab never asks the browser', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  // Requests from a Service Worker carry -1, and asking about that always threw
+  await harness.request('https://a.example.com/one', -1);
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.tabGets), []);
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls.length, 1);
+  assert.equal(urls[0].tabTitle, 'unknown');
+});
+
+test('a tab that reports itself is never asked about', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.updateTab({ id: 7, title: 'Reported', url: 'https://reported.example.com/' });
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  assert.deepEqual(plain(harness.tabGets), []);
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls[0].tabTitle, 'Reported');
+});
+
+test('a title that changes as the page loads is the one captured', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.updateTab({ id: 7, title: 'Loading', url: 'https://reported.example.com/' });
+  harness.updateTab({ id: 7, title: 'Settled', url: 'https://reported.example.com/' });
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls[0].tabTitle, 'Settled');
+});
+
+test('a closed tab is forgotten rather than kept for the life of the worker', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.updateTab({ id: 7, title: 'Reported', url: 'https://reported.example.com/' });
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+  assert.deepEqual(plain(harness.tabGets), []);
+
+  harness.removeTab(7);
+  await harness.request('https://a.example.com/two', 7);
+  await harness.settle();
+
+  // Asking again is the proof the entry was dropped
+  assert.deepEqual(plain(harness.tabGets), [7]);
+});
+
+test('an overlay still goes only to a tab showing an http page', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.updateTab({ id: 7, title: 'Settings', url: 'chrome://settings' });
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  assert.deepEqual(harness.overlayUrls(), []);
+  // It is captured all the same, it just does not interrupt the page
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls.length, 1);
+});
+
+test('a tab that has gone away does not stop the URL being captured', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES }, missingTabIds: [7] });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  const urls = await harness.getFoundUrls();
+  assert.equal(urls.length, 1);
+  assert.equal(urls[0].tabTitle, 'unknown');
 });
 
 test('rules backfilled with ids by the migration are the ones matched against', async () => {

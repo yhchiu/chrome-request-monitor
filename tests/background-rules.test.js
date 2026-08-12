@@ -126,7 +126,10 @@ function createBackgroundHarness({
       sendMessage: (tabId, message) => {
         tabMessages.push({ tabId, message });
         return Promise.resolve();
-      }
+      },
+      // The tab title cache keeps itself current from these
+      onUpdated: { addListener() {} },
+      onRemoved: { addListener() {} }
     },
     webRequest: {
       onBeforeRequest: {
