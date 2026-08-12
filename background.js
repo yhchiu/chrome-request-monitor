@@ -190,10 +190,45 @@ async function broadcastToTabs(message) {
   await broadcastToTabIds(tabs.map(tab => tab.id), message);
 }
 
-// Tell the tabs about the new focus so overlays for rules that are no longer
-// shown disappear, instead of lingering until they time out.
+// Tabs that have been sent an overlay and so may still be showing one.
+//
+// The focus broadcast only has to reach these. A tab with nothing on screen has
+// nothing to take away, and asking the browser which tabs exist in order to
+// find that out costs more the more tabs are open, while what the broadcast can
+// actually achieve does not grow at all: on a profile with ten thousand tabs
+// open, the few holding an overlay are still only a few.
+//
+// Being too generous here is harmless. A tab whose overlays have already timed
+// out just receives a message that finds nothing to remove. Being too strict is
+// what leaves an overlay stranded, so an entry is dropped only once the tab is
+// gone rather than on a guess about when its overlays expired.
+const overlayTabIds = new Set();
+
+// A ceiling, so the set cannot grow for as long as the Service Worker lives.
+const MAX_OVERLAY_TABS = 100;
+
+function rememberOverlayTab(tabId) {
+  // A Set keeps its insertion order, so re-inserting moves the tab to the end
+  // and leaves the tab shown longest ago first, which is the one to drop. Same
+  // approach as the bound on foundUrlsByTab.
+  overlayTabIds.delete(tabId);
+  overlayTabIds.add(tabId);
+
+  if (overlayTabIds.size > MAX_OVERLAY_TABS) {
+    overlayTabIds.delete(overlayTabIds.values().next().value);
+  }
+}
+
+// Tell the tabs showing an overlay about the new focus, so overlays for rules
+// that are no longer shown disappear instead of lingering until they time out.
+//
+// A Service Worker restart empties the set, which quietly turns this back into
+// waiting for the timeout. That is the right trade: the worker is only stopped
+// once it has been idle a while, by which point the overlays this would have
+// taken away have usually timed out anyway, and remembering them across a
+// restart would put a storage write on the path every captured request takes.
 function broadcastFocusedRules() {
-  return broadcastToTabs({
+  return broadcastToTabIds(Array.from(overlayTabIds), {
     action: 'updateFocusedRules',
     focusedRuleIds: focusedRuleIds
   });
@@ -541,6 +576,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabInfoCache.delete(tabId);
+  // A closed tab took its overlays with it, so there is nothing left to reach
+  overlayTabIds.delete(tabId);
 });
 
 // Listen for web requests
@@ -602,6 +639,9 @@ async function handleBeforeRequest(details) {
           action: 'showUrlOverlay',
           data: urlData
         });
+        // Only once the send lands. A rejection means no content script took
+        // it, so there is no overlay there to take away later.
+        rememberOverlayTab(details.tabId);
       } catch (error) {
         // Content script may not be injected yet or page is restricted; skip logging as error to reduce noise
         console.warn(`[${chrome.i18n.getMessage('extensionName')}] Skipped sending overlay to this tab:`, { tabId: details.tabId, url: tabUrl, reason: error?.message });

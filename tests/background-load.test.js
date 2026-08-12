@@ -268,6 +268,11 @@ function createHarness({
     setActiveTab(tabId) {
       activeTabId = tabId;
     },
+    // Make tabs start rejecting, the way a tab that has gone away since it was
+    // last messaged does
+    setUnreachableTabIds(tabIds) {
+      unreachableTabIds = tabIds;
+    },
     // Report a tab the way Chrome does as it loads and its title settles
     updateTab(tab) {
       tabUpdatedListener(tab.id, { title: tab.title }, tab);
@@ -515,23 +520,31 @@ function manyTabs(count) {
   return Array.from({ length: count }, (unused, index) => ({ id: index + 1 }));
 }
 
-test('a focus broadcast reaches every tab', async () => {
+// A focus broadcast exists to take away overlays that are on screen, so its
+// cost should follow the number of tabs showing one rather than the number of
+// tabs open. Those are wildly different numbers on a busy profile.
+
+test('a focus broadcast reaches only the tabs that were shown an overlay', async () => {
   const harness = createHarness({
     sync: { urlRules: RULES },
     local: { focusedRuleIds: null },
     tabs: manyTabs(500)
   });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 7);
+  await harness.request('https://a.example.com/two', 42);
   await harness.settle();
 
   await harness.setFocusedRules(['rule-a']);
   await harness.settle();
 
   const sent = harness.messagesOfAction('updateFocusedRules');
-  assert.equal(sent.length, 500);
+  assert.deepEqual(sent.map(entry => entry.tabId), [7, 42]);
   assert.deepEqual(plain(sent[0].message.focusedRuleIds), ['rule-a']);
 });
 
-test('a focus broadcast keeps a bounded number of messages in flight', async () => {
+test('a focus broadcast does not ask the browser for the tab list', async () => {
   const harness = createHarness({
     sync: { urlRules: RULES },
     local: { focusedRuleIds: null },
@@ -539,24 +552,142 @@ test('a focus broadcast keeps a bounded number of messages in flight', async () 
   });
   await harness.settle();
 
+  await harness.request('https://a.example.com/one', 7);
+  await harness.settle();
+
+  const queriesBefore = harness.tabQueries.length;
   await harness.setFocusedRules(['rule-a']);
   await harness.settle();
 
-  assert.equal(harness.messagesOfAction('updateFocusedRules').length, 500);
+  // The recipients are already known, and every tab the query returns would
+  // carry its url and title across for nothing
+  assert.equal(harness.tabQueries.length, queriesBefore);
+});
+
+test('a tab that never took the overlay is not told about the focus', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(10),
+    // No content script here, so the overlay send is rejected
+    unreachableTabIds: [4]
+  });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 4);
+  await harness.request('https://a.example.com/two', 5);
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  assert.deepEqual(
+    harness.messagesOfAction('updateFocusedRules').map(entry => entry.tabId),
+    [5]
+  );
+});
+
+test('a closed tab is not told about the focus', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(10)
+  });
+  await harness.settle();
+
+  await harness.request('https://a.example.com/one', 3);
+  await harness.request('https://a.example.com/two', 6);
+  await harness.settle();
+
+  harness.removeTab(3);
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  assert.deepEqual(
+    harness.messagesOfAction('updateFocusedRules').map(entry => entry.tabId),
+    [6]
+  );
+});
+
+test('the tabs remembered for a focus broadcast are bounded', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(400)
+  });
+  await harness.settle();
+
+  for (let tabId = 1; tabId <= 400; tabId += 1) {
+    await harness.request(`https://a.example.com/${tabId}`, tabId);
+  }
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  // The most recent hundred, so the set cannot grow for as long as the Service
+  // Worker lives
+  const sent = harness.messagesOfAction('updateFocusedRules');
+  assert.equal(sent.length, 100);
+  assert.deepEqual(sent[0].tabId, 301);
+  assert.deepEqual(sent[sent.length - 1].tabId, 400);
+});
+
+test('a focus broadcast keeps a bounded number of messages in flight', async () => {
+  const harness = createHarness({
+    sync: { urlRules: RULES },
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(100)
+  });
+  await harness.settle();
+
+  for (let tabId = 1; tabId <= 100; tabId += 1) {
+    await harness.request(`https://a.example.com/${tabId}`, tabId);
+  }
+  await harness.settle();
+
+  await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  assert.equal(harness.messagesOfAction('updateFocusedRules').length, 100);
   assert.ok(
     harness.peakInFlight() <= 50,
     `expected at most 50 messages in flight, saw ${harness.peakInFlight()}`
   );
 });
 
-test('the broadcast asks only for tabs that can receive it', async () => {
+test('a tab that cannot receive the broadcast does not stop the rest', async () => {
   const harness = createHarness({
     sync: { urlRules: RULES },
-    local: { focusedRuleIds: null }
+    local: { focusedRuleIds: null },
+    tabs: manyTabs(120)
   });
   await harness.settle();
 
+  for (let tabId = 1; tabId <= 100; tabId += 1) {
+    await harness.request(`https://a.example.com/${tabId}`, tabId);
+  }
+  await harness.settle();
+
+  // Closed after taking an overlay, which is how a tab in the set goes away
+  // between the broadcast being built and the message arriving
+  harness.setUnreachableTabIds([3, 60, 61, 99]);
+
   await harness.setFocusedRules(['rule-a']);
+  await harness.settle();
+
+  assert.equal(harness.messagesOfAction('updateFocusedRules').length, 100);
+});
+
+// The overlay settings broadcast still has to reach every tab: a tab with
+// nothing on screen right now still shows its next overlay with whatever
+// settings it last heard about.
+
+test('the overlay settings broadcast asks only for tabs that can receive it', async () => {
+  const harness = createHarness({ sync: { urlRules: RULES } });
+  await harness.settle();
+
+  harness.syncOverlaySettings({ maxOverlays: 3, timeoutSeconds: 10, position: 'top-left', opacity: 0.5 });
   await harness.settle();
 
   // A discarded tab has no renderer and a non http page never ran the content
@@ -564,22 +695,6 @@ test('the broadcast asks only for tabs that can receive it', async () => {
   const query = harness.tabQueries[harness.tabQueries.length - 1];
   assert.equal(query.discarded, false);
   assert.deepEqual(plain(query.url), ['http://*/*', 'https://*/*']);
-});
-
-test('a tab that cannot receive the broadcast does not stop the rest', async () => {
-  const harness = createHarness({
-    sync: { urlRules: RULES },
-    local: { focusedRuleIds: null },
-    tabs: manyTabs(120),
-    // Spread across batches so a whole batch is never lost at once
-    unreachableTabIds: [3, 60, 61, 119]
-  });
-  await harness.settle();
-
-  await harness.setFocusedRules(['rule-a']);
-  await harness.settle();
-
-  assert.equal(harness.messagesOfAction('updateFocusedRules').length, 120);
 });
 
 test('an overlay settings change is broadcast the same bounded way', async () => {

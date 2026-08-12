@@ -576,6 +576,11 @@ test('a rule deleted on another device drops out of the focus', async () => {
   });
 
   await harness.settle();
+  // A focus broadcast only reaches tabs that were shown an overlay, so the tab
+  // has to have been shown one before there is anything to tell
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+
   harness.syncRules([TWO_RULES[1]]);
   await harness.settle();
 
@@ -590,6 +595,9 @@ test('deleting the last focused rule on another device widens back to every rule
   });
 
   await harness.settle();
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+
   harness.syncRules([TWO_RULES[1]]);
   await harness.settle();
 
@@ -599,7 +607,7 @@ test('deleting the last focused rule on another device widens back to every rule
 
   await harness.request('https://b.example.com/one');
   await harness.settle();
-  assert.deepEqual(harness.overlayMessages(), ['rule-b']);
+  assert.deepEqual(harness.overlayMessages(), ['rule-a', 'rule-b']);
 });
 
 test('a sync change that removes no focused rule writes nothing', async () => {
@@ -649,7 +657,24 @@ test('a legacy filter naming a rule that is gone migrates to showing every rule'
   assert.equal(harness.localData.focusedRuleIds, null);
 });
 
-test('changing the focus is broadcast to the tabs', async () => {
+test('changing the focus is broadcast to a tab that was shown an overlay', async () => {
+  const harness = createBackgroundHarness({
+    sync: { urlRules: TWO_RULES },
+    local: { focusedRuleIds: null }
+  });
+
+  await harness.settle();
+  await harness.request('https://a.example.com/one');
+  await harness.settle();
+
+  await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: ['rule-b'] });
+  // The broadcast is not awaited before the response, so it lands after it
+  await harness.settle();
+
+  assert.deepEqual(harness.focusBroadcasts(), [['rule-b']]);
+});
+
+test('changing the focus tells no tab when none was shown an overlay', async () => {
   const harness = createBackgroundHarness({
     sync: { urlRules: TWO_RULES },
     local: { focusedRuleIds: null }
@@ -657,10 +682,10 @@ test('changing the focus is broadcast to the tabs', async () => {
 
   await harness.settle();
   await harness.sendMessage({ action: 'setFocusedRules', focusedRuleIds: ['rule-b'] });
-  // The broadcast has to list the tabs first, so it lands after the response
   await harness.settle();
 
-  assert.deepEqual(harness.focusBroadcasts(), [['rule-b']]);
+  // Nothing is on screen anywhere, so there is nothing to take away
+  assert.deepEqual(harness.focusBroadcasts(), []);
 });
 
 test('the old single rule filter moves to local storage', async () => {
