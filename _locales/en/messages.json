@@ -1,12 +1,4 @@
 {
-  "extensionName": {
-    "message": "Network Request Monitor",
-    "description": "Name of the extension"
-  },
-  "extensionDescription": {
-    "message": "Monitor network requests and find URLs based on custom rules",
-    "description": "Description of the extension"
-  },
   "actionTitle": {
     "message": "Network Request Monitor",
     "description": "Tooltip for the extension icon"

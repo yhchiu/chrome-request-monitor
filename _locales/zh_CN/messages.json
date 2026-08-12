@@ -1,12 +1,4 @@
 {
-  "extensionName": {
-    "message": "网络连接监控器",
-    "description": "Extension name in Simplified Chinese"
-  },
-  "extensionDescription": {
-    "message": "监控网络连接并根据自定义规则查找 URL",
-    "description": "Extension description in Simplified Chinese"
-  },
   "actionTitle": {
     "message": "网络连接监控器",
     "description": "Extension icon tooltip in Simplified Chinese"

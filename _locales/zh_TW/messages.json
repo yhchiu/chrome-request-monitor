@@ -1,12 +1,4 @@
 {
-  "extensionName": {
-    "message": "網路連線監控器",
-    "description": "Extension name in Traditional Chinese"
-  },
-  "extensionDescription": {
-    "message": "監控網路連線並根據自定義規則尋找 URL",
-    "description": "Extension description in Traditional Chinese"
-  },
   "actionTitle": {
     "message": "網路連線監控器",
     "description": "Extension icon tooltip in Traditional Chinese"
