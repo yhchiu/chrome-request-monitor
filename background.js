@@ -611,11 +611,23 @@ const tabInfoCache = new Map();
 // while the user works through tab after tab. Without it this is the one
 // collection here with no limit at all.
 //
-// Comfortably wider than MAX_TRACKED_TABS, since the tabs holding captured URLs
-// are the ones whose titles are worth having and should never be what an
-// eviction reaches. Dropping an entry only ever costs the optimization: the
-// next match for that tab asks the browser once and puts it back.
-const MAX_CACHED_TABS = 200;
+// Set high rather than tight, because this bounds a tail that is not expected
+// to be reached rather than trimming something that fills up. What decides the
+// number is where an eviction starts to hurt, and that is a cliff rather than a
+// slope: an entry is dropped just before the tab needs it again, so once more
+// tabs are matching rules at once than this holds, a large share of matches go
+// back to asking the browser, which is the round trip the cache exists to save.
+// A rule matching broadly across a busy profile can have several hundred tabs
+// matching at once, so a few hundred entries would sit right on that edge.
+// Two thousand costs about a megabyte in the worst case, and only if two
+// thousand distinct tabs really are active at once.
+//
+// The same number as MAX_TOTAL_FOUND_URLS, which is what "a lot, but bounded"
+// means elsewhere here. Well past MAX_TRACKED_TABS either way, so the tabs
+// holding captured URLs are never what an eviction reaches. Dropping an entry
+// only ever costs the optimization: the next match for that tab asks the
+// browser once and puts it back.
+const MAX_CACHED_TABS = 2000;
 
 // Move a tab to the end, which leaves the least recently used one first. Same
 // approach as the bound on overlayTabIds.

@@ -955,12 +955,16 @@ test('the tab titles kept are bounded rather than one per tab open', async () =>
   const harness = createHarness({ sync: { urlRules: RULES } });
   await harness.settle();
 
-  for (let tabId = 1; tabId <= 300; tabId += 1) {
+  // More tabs than the ceiling holds, which takes a profile far busier than the
+  // handful that report themselves in the ordinary case
+  const reportingTabs = 2100;
+
+  for (let tabId = 1; tabId <= reportingTabs; tabId += 1) {
     harness.updateTab({ id: tabId, title: `tab ${tabId}`, url: `https://example.com/${tabId}` });
   }
 
   // The most recent are still known, so a match there asks the browser nothing
-  await harness.request('https://a.example.com/recent', 300);
+  await harness.request('https://a.example.com/recent', reportingTabs);
   await harness.settle();
   assert.deepEqual(plain(harness.tabGets), []);
 
@@ -977,7 +981,8 @@ test('a tab that keeps capturing is not evicted by tabs that only report themsel
   // Its title settled as it loaded, so it never reports itself again
   harness.updateTab({ id: 1, title: 'Steady', url: 'https://example.com/steady' });
 
-  for (let tabId = 2; tabId <= 300; tabId += 1) {
+  // Enough of them to overflow the ceiling several times over
+  for (let tabId = 2; tabId <= 2100; tabId += 1) {
     await harness.request(`https://a.example.com/still-here-${tabId}`, 1);
     harness.updateTab({ id: tabId, title: `tab ${tabId}`, url: `https://example.com/${tabId}` });
   }
