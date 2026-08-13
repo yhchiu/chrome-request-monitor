@@ -598,11 +598,18 @@ chrome.storage.sync.get(['dataSettings'], (result) => {
 // restart: the map starts empty every time and fills itself back in.
 const tabInfoCache = new Map();
 
-// A ceiling on how many are kept, so what is held follows the tabs this
-// extension captures from rather than the number of tabs the user has open.
-// Every tab reports itself as it loads, so without this a profile with ten
-// thousand tabs open kept ten thousand titles and urls resident for as long as
-// the Service Worker lived.
+// A ceiling on how many are kept.
+//
+// Not because a large profile fills this. A tab only enters the cache when it
+// navigates, changes its title, or captures something, so the tabs merely
+// sitting open report nothing and never arrive, and the map starts empty on
+// every Service Worker start regardless. What it holds is the tabs that were
+// doing something while this worker was alive, which stays a small number
+// however many are open.
+//
+// The ceiling is for the tail of that: a worker kept alive by steady traffic
+// while the user works through tab after tab. Without it this is the one
+// collection here with no limit at all.
 //
 // Comfortably wider than MAX_TRACKED_TABS, since the tabs holding captured URLs
 // are the ones whose titles are worth having and should never be what an
